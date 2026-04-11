@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST="{\"app/page.js -> xlsx\":{\"id\":\"app/page.js -> xlsx\",\"files\":[\"static/chunks/_app-pages-browser_node_modules_xlsx_xlsx_mjs.js\"]}}"
