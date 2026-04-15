@@ -388,9 +388,21 @@ function InfoTab({ project, auth, onUpdated }) {
           return (
             <div key={type} style={{ display:'flex', alignItems:'center', gap:10, padding:'7px 0', borderBottom:'1px solid rgba(42,42,58,0.2)' }}>
               <div style={{ width:6, height:6, borderRadius:3, background:stColor, flexShrink:0 }} />
-              <span className="mono" style={{ width:90, fontWeight:600, fontSize:12, textTransform:'capitalize' }}>{type}</span>
-              <span className="badge" style={{ background:stColor+'22', color:stColor }}>{st}</span>
+              <span className="mono" style={{ width:85, fontWeight:600, fontSize:12, textTransform:'capitalize' }}>{type}</span>
+              {auth.isPM ? (
+                <select value={st} onChange={function(e){ updateDrawing(type, 'status', e.target.value); }}
+                  style={{ width:110, fontSize:10, padding:'3px 6px', color:stColor, background:'rgba(10,10,15,0.8)', border:'1px solid var(--border)', borderRadius:4 }}>
+                  {DRAW_STATUSES.map(function(s){ return <option key={s} value={s}>{s}</option>; })}
+                </select>
+              ) : (
+                <span className="badge" style={{ background:stColor+'22', color:stColor }}>{st}</span>
+              )}
               <span className="mono" style={{ fontSize:10, color:'var(--dim)' }}>R{d?.revision || 0}</span>
+              {auth.isPM && (
+                <input value={drawingLinks[type] || d?.link || ''} onChange={function(e){ setDrawingLinks(function(prev){ var n=Object.assign({},prev); n[type]=e.target.value; return n; }); }}
+                  onBlur={function(){ if(drawingLinks[type] !== undefined && drawingLinks[type] !== (d?.link||'')) updateDrawing(type, 'link', drawingLinks[type]); }}
+                  placeholder="Drawing link" style={{ width:140, fontSize:9, padding:'3px 6px' }} />
+              )}
               {d?.link && <a href={d.link} target="_blank" rel="noreferrer" style={{ fontSize:10, color:'#38bdf8', textDecoration:'none' }}>View ↗</a>}
             </div>
           );
