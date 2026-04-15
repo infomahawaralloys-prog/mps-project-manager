@@ -448,9 +448,10 @@ function FabTab({ project, auth }) {
 
   async function handleBomUpload(e) {
     var file = e.target.files[0]; if (!file) return;
-    var XLSX = (await import('xlsx')).default;
+    var XLSX = await import('xlsx');
     var reader = new FileReader();
     reader.onload = async function(ev) {
+      
       try {
         var wb = XLSX.read(ev.target.result, { type:'binary' });
         var newParts = [];
@@ -480,7 +481,7 @@ function FabTab({ project, auth }) {
 
   async function handleSheetingUpload(e) {
     var file = e.target.files[0]; if (!file) return;
-    var XLSX = (await import('xlsx')).default;
+    var XLSX = await import('xlsx');
     var reader = new FileReader();
     reader.onload = async function(ev) {
       try {
@@ -536,7 +537,7 @@ function FabTab({ project, auth }) {
 
   async function handleDeckUpload(e) {
     var file = e.target.files[0]; if (!file) return;
-    var XLSX = (await import('xlsx')).default;
+    var XLSX = await import('xlsx');
     var reader = new FileReader();
     reader.onload = async function(ev) {
       try {
