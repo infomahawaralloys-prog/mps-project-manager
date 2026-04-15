@@ -446,38 +446,111 @@ function FabTab({ project, auth }) {
     setParts(p || []); setFabSummary(fs || {}); setWorkers(w || []); setLoading(false);
   }
 
+
+  // ===== SMART AUTO-PARSER (works with any Excel format) =====
+  function findCol(headers, keywords, excludeKw) {
+    for (var i = 0; i < headers.length; i++) {
+      var h = String(headers[i] || '').toLowerCase().replace(/\u00a0/g, ' ').trim();
+      var found = false;
+      for (var k = 0; k < keywords.length; k++) { if (h.indexOf(keywords[k]) >= 0) { found = true; break; } }
+      if (found && excludeKw && excludeKw.length > 0) {
+        for (var e = 0; e < excludeKw.length; e++) { if (h.indexOf(excludeKw[e]) >= 0) { found = false; break; } }
+      }
+      if (found) return headers[i];
+    }
+    return null;
+  }
+
+  function findHeaderRow(XLSX, ws) {
+    var aoa = XLSX.utils.sheet_to_aoa(ws);
+    var markKw = ['mark', 'assembly', 'standard', 'item', 'part'];
+    var qtyKw = ['qty', 'quantity', 'nos', 'pcs'];
+    for (var i = 0; i < Math.min(25, aoa.length); i++) {
+      var row = aoa[i];
+      if (!row) continue;
+      var rowStr = row.map(function(c){ return String(c || '').toLowerCase().replace(/\u00a0/g, ' '); });
+      var hasMark = rowStr.some(function(c){ return markKw.some(function(k){ return c.indexOf(k) >= 0; }); });
+      var hasQty = rowStr.some(function(c){ return qtyKw.some(function(k){ return c.indexOf(k) >= 0; }); });
+      if (hasMark && hasQty) return i;
+    }
+    return 0;
+  }
+
+  function smartParseSheet(XLSX, ws) {
+    var headerIdx = findHeaderRow(XLSX, ws);
+    var rows = XLSX.utils.sheet_to_json(ws, { range: headerIdx, defval: '' });
+    if (!rows || rows.length === 0) return [];
+    var headers = Object.keys(rows[0]);
+    var markCol = findCol(headers, ['mark', 'assembly', 'pos', 'part no', 'standard', 'item'], []);
+    var descCol = findCol(headers, ['desc', 'type', 'name'], ['net', 'weight', 'qty']);
+    var qtyCol = findCol(headers, ['qty', 'quantity', 'nos', 'pcs'], []);
+    var wtCol = findCol(headers, ['weight', 'wt', 'kg'], ['all', 'total', 'for all', 'gross']);
+    if (!wtCol) wtCol = findCol(headers, ['weight', 'wt', 'kg'], []);
+    var areaCol = findCol(headers, ['area', 'sq'], []);
+    var colorCol = findCol(headers, ['color', 'colour', 'shade'], []);
+    if (!markCol) return [];
+    var results = [];
+    rows.forEach(function(r) {
+      var mark = String(r[markCol] || '').replace(/\u00a0/g, '').trim();
+      if (!mark) return;
+      var ml = mark.toLowerCase();
+      if (ml.indexOf('legend') >= 0 || ml.indexOf('total') >= 0 || ml.indexOf('grand') >= 0 || ml === 'sno' || ml === 'sr' || ml.indexOf('---') >= 0) return;
+      var qty = qtyCol ? (parseInt(r[qtyCol]) || 0) : 1;
+      if (qty <= 0) return;
+      results.push({
+        mark: mark,
+        description: descCol ? String(r[descCol] || '').replace(/\u00a0/g, ' ').trim() : '',
+        qty: qty,
+        weight: wtCol ? (parseFloat(r[wtCol]) || 0) : 0,
+        area: areaCol ? (parseFloat(r[areaCol]) || 0) : 0,
+        color: colorCol ? String(r[colorCol] || '').trim() : ''
+      });
+    });
+    return results;
+  }
+
   async function handleBomUpload(e) {
     var file = e.target.files[0]; if (!file) return;
     var XLSX = await import('xlsx');
     var reader = new FileReader();
     reader.onload = async function(ev) {
-      
       try {
         var wb = XLSX.read(ev.target.result, { type:'binary' });
         var newParts = [];
-        var sheetName = wb.SheetNames.find(function(s){ return s.toLowerCase().indexOf('shipping') >= 0; });
+        var sheetName = wb.SheetNames.find(function(s){ var l = s.toLowerCase(); return l.indexOf('shipping') >= 0 || (l.indexOf('boq') >= 0 && l.indexOf('built') < 0); })
+          || wb.SheetNames.find(function(s){ return s.toUpperCase().indexOf('PEB') >= 0 && s.toUpperCase().indexOf('BUILT') >= 0; })
+          || wb.SheetNames[0];
         if (sheetName) {
-          XLSX.utils.sheet_to_json(wb.Sheets[sheetName]).forEach(function(r) {
-            var mark = r['Assembly Pos'] || r['ASSEMBLY_POS'] || r['Mark'] || ''; if (!mark) return;
-            newParts.push({ project_id: project.id, category:'builtup', mark: String(mark).trim(), description: r['Description'] || r['DESC'] || '', qty: parseInt(r['Qty'] || r['QTY'] || 1), weight: parseFloat(r['Weight'] || r['WT'] || 0) });
+          smartParseSheet(XLSX, wb.Sheets[sheetName]).forEach(function(p) {
+            newParts.push({ project_id: project.id, category:'builtup', mark: p.mark, description: p.description, qty: p.qty, weight: p.weight });
           });
         }
         ['PURLIN','GIRT','JAMB','HEADER'].forEach(function(prefix) {
           var sn = wb.SheetNames.find(function(s){ return s.toUpperCase().indexOf(prefix) >= 0; });
-          if (sn) { XLSX.utils.sheet_to_json(wb.Sheets[sn]).forEach(function(r) { var mark = r['Mark'] || r['MARK'] || r['Assembly Pos'] || ''; if (!mark) return; newParts.push({ project_id: project.id, category:'coldform', mark: String(mark).trim(), description: r['Description'] || prefix, qty: parseInt(r['Qty'] || r['QTY'] || 1), weight: parseFloat(r['Weight'] || r['WT'] || 0) }); }); }
+          if (sn) {
+            smartParseSheet(XLSX, wb.Sheets[sn]).forEach(function(p) {
+              newParts.push({ project_id: project.id, category:'coldform', mark: p.mark, description: p.description || prefix, qty: p.qty, weight: p.weight });
+            });
+          }
         });
         var hwSheet = wb.SheetNames.find(function(s){ return s.toUpperCase().indexOf('HARDWARE') >= 0; });
-        if (hwSheet) { XLSX.utils.sheet_to_json(wb.Sheets[hwSheet]).forEach(function(r) { var mark = r['Mark'] || r['Item'] || r['Description'] || ''; if (!mark) return; newParts.push({ project_id: project.id, category:'hardware', mark: String(mark).trim(), description: r['Description'] || '', qty: parseInt(r['Qty'] || r['QTY'] || 1), weight: parseFloat(r['Weight'] || r['WT'] || 0) }); }); }
-        if (newParts.length === 0) { alert('No parts found in BOM'); return; }
+        if (hwSheet) {
+          smartParseSheet(XLSX, wb.Sheets[hwSheet]).forEach(function(p) {
+            newParts.push({ project_id: project.id, category:'hardware', mark: p.mark, description: p.description, qty: p.qty, weight: p.weight });
+          });
+        }
+        if (newParts.length === 0) { alert('No parts found in BOM. Make sure file has Mark/Assembly and Qty/Weight columns.'); return; }
         await db.deleteParts(project.id, 'builtup'); await db.deleteParts(project.id, 'coldform'); await db.deleteParts(project.id, 'hardware');
         await db.upsertParts(newParts);
         var counts = {}; newParts.forEach(function(p){ counts[p.category] = (counts[p.category]||0) + 1; });
         await db.logActivity({ project_id: project.id, action_type: 'parts_upload', details: 'Uploaded BOM: ' + Object.keys(counts).map(function(k){ return counts[k] + ' ' + k; }).join(', '), user_name: auth.userName, user_role: auth.role });
         loadData();
+        alert('BOM uploaded: ' + newParts.length + ' parts');
       } catch (err) { alert('Error reading BOM: ' + err.message); }
     };
     reader.readAsBinaryString(file); e.target.value = '';
   }
+
 
   async function handleSheetingUpload(e) {
     var file = e.target.files[0]; if (!file) return;
@@ -487,43 +560,35 @@ function FabTab({ project, auth }) {
       try {
         var wb = XLSX.read(ev.target.result, { type:'binary' });
         var newParts = [];
-        // Roofing from ROOF SHEET tab
-        var roofSheet = wb.SheetNames.find(function(s){ return s.toUpperCase().indexOf('ROOF') >= 0 && s.toUpperCase().indexOf('SHEET') >= 0; });
+        // Roofing
+        var roofSheet = wb.SheetNames.find(function(s){ var u = s.toUpperCase(); return u.indexOf('ROOF') >= 0; });
         if (roofSheet) {
-          XLSX.utils.sheet_to_json(wb.Sheets[roofSheet]).forEach(function(r) {
-            var mark = r['Mark'] || r['MARK'] || r['Description'] || r['Item'] || '';
-            if (!mark) return;
-            newParts.push({ project_id: project.id, category:'roofing', mark: String(mark).trim(),
-              description: r['Description'] || r['DESC'] || '', qty: parseInt(r['Qty'] || r['QTY'] || 1),
-              weight: parseFloat(r['Weight'] || r['WT'] || 0), area: parseFloat(r['Area'] || r['AREA'] || 0),
-              color: r['Color'] || r['COLOR'] || r['Colour'] || '' });
+          smartParseSheet(XLSX, wb.Sheets[roofSheet]).forEach(function(p) {
+            newParts.push({ project_id: project.id, category:'roofing', mark: p.mark, description: p.description, qty: p.qty, weight: p.weight, area: p.area, color: p.color });
           });
         }
-        // Cladding from CLADDING SHEET tab
-        var cladSheet = wb.SheetNames.find(function(s){ return s.toUpperCase().indexOf('CLADDING') >= 0; });
-        if (cladSheet) {
-          XLSX.utils.sheet_to_json(wb.Sheets[cladSheet]).forEach(function(r) {
-            var mark = r['Mark'] || r['MARK'] || r['Description'] || r['Item'] || '';
-            if (!mark) return;
-            newParts.push({ project_id: project.id, category:'cladding', mark: String(mark).trim(),
-              description: r['Description'] || r['DESC'] || '', qty: parseInt(r['Qty'] || r['QTY'] || 1),
-              weight: parseFloat(r['Weight'] || r['WT'] || 0), area: parseFloat(r['Area'] || r['AREA'] || 0),
-              color: r['Color'] || r['COLOR'] || r['Colour'] || '' });
+        // Cladding
+        var cladSheet = wb.SheetNames.find(function(s){ return s.toUpperCase().indexOf('CLAD') >= 0 || s.toUpperCase().indexOf('WALL') >= 0; });
+        if (cladSheet && cladSheet !== roofSheet) {
+          smartParseSheet(XLSX, wb.Sheets[cladSheet]).forEach(function(p) {
+            newParts.push({ project_id: project.id, category:'cladding', mark: p.mark, description: p.description, qty: p.qty, weight: p.weight, area: p.area, color: p.color });
           });
         }
-        // Accessories from FLASHING TRIM tab
-        var accSheet = wb.SheetNames.find(function(s){ return s.toUpperCase().indexOf('FLASH') >= 0 || s.toUpperCase().indexOf('TRIM') >= 0; });
-        if (accSheet) {
-          XLSX.utils.sheet_to_json(wb.Sheets[accSheet]).forEach(function(r) {
-            var mark = r['Mark'] || r['MARK'] || r['Description'] || r['Item'] || '';
-            if (!mark) return;
-            newParts.push({ project_id: project.id, category:'accessories', mark: String(mark).trim(),
-              description: r['Description'] || r['DESC'] || '', qty: parseInt(r['Qty'] || r['QTY'] || 1),
-              weight: parseFloat(r['Weight'] || r['WT'] || 0),
-              color: r['Color'] || r['COLOR'] || r['Colour'] || '' });
+        // Accessories
+        var accSheet = wb.SheetNames.find(function(s){ var u = s.toUpperCase(); return u.indexOf('FLASH') >= 0 || u.indexOf('TRIM') >= 0 || u.indexOf('ACCESS') >= 0; });
+        if (accSheet && accSheet !== roofSheet && accSheet !== cladSheet) {
+          smartParseSheet(XLSX, wb.Sheets[accSheet]).forEach(function(p) {
+            newParts.push({ project_id: project.id, category:'accessories', mark: p.mark, description: p.description, qty: p.qty, weight: p.weight, color: p.color });
           });
         }
-        if (newParts.length === 0) { alert('No sheeting parts found. Check sheet names: ROOF SHEET, CLADDING SHEET, FLASHING TRIM'); return; }
+        // If no specific sheets found, try parsing all sheets
+        if (newParts.length === 0) {
+          wb.SheetNames.forEach(function(sn) {
+            var parsed = smartParseSheet(XLSX, wb.Sheets[sn]);
+            parsed.forEach(function(p) { newParts.push({ project_id: project.id, category:'roofing', mark: p.mark, description: p.description, qty: p.qty, weight: p.weight, area: p.area, color: p.color }); });
+          });
+        }
+        if (newParts.length === 0) { alert('No sheeting parts found. Make sure the file has columns for Mark and Qty/Weight.'); return; }
         await db.deleteParts(project.id, 'roofing'); await db.deleteParts(project.id, 'cladding'); await db.deleteParts(project.id, 'accessories');
         await db.upsertParts(newParts);
         var counts = {}; newParts.forEach(function(p){ counts[p.category] = (counts[p.category]||0) + 1; });
@@ -543,21 +608,18 @@ function FabTab({ project, auth }) {
       try {
         var wb = XLSX.read(ev.target.result, { type:'binary' });
         var newParts = [];
-        // Look for sheet with DS marks or DECK in name
-        wb.SheetNames.forEach(function(sheetName) {
-          var rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
-          rows.forEach(function(r) {
-            var mark = r['Mark'] || r['MARK'] || r['Assembly Pos'] || '';
-            if (!mark) return;
-            mark = String(mark).trim();
-            if (mark.toUpperCase().indexOf('DS') === 0 || sheetName.toUpperCase().indexOf('DECK') >= 0) {
-              newParts.push({ project_id: project.id, category:'deck', mark: mark,
-                description: r['Description'] || r['DESC'] || 'Deck Sheet', qty: parseInt(r['Qty'] || r['QTY'] || 1),
-                weight: parseFloat(r['Weight'] || r['WT'] || 0), area: parseFloat(r['Area'] || r['AREA'] || 0) });
+        // Look for DECK sheet first, then try all sheets for DS* marks
+        var deckSheet = wb.SheetNames.find(function(s){ return s.toUpperCase().indexOf('DECK') >= 0; });
+        var sheetsToCheck = deckSheet ? [deckSheet] : wb.SheetNames;
+        sheetsToCheck.forEach(function(sn) {
+          var parsed = smartParseSheet(XLSX, wb.Sheets[sn]);
+          parsed.forEach(function(p) {
+            if (deckSheet || p.mark.toUpperCase().indexOf('DS') === 0) {
+              newParts.push({ project_id: project.id, category:'deck', mark: p.mark, description: p.description || 'Deck Sheet', qty: p.qty, weight: p.weight, area: p.area });
             }
           });
         });
-        if (newParts.length === 0) { alert('No deck parts found (looking for DS* marks)'); return; }
+        if (newParts.length === 0) { alert('No deck parts found. Use a file with DECK sheet or DS* marks.'); return; }
         await db.deleteParts(project.id, 'deck');
         await db.upsertParts(newParts);
         await db.logActivity({ project_id: project.id, action_type: 'parts_upload', details: 'Uploaded Deck BOQ: ' + newParts.length + ' parts', user_name: auth.userName, user_role: auth.role });
