@@ -960,7 +960,7 @@ function ErectionTab({ project, auth }) {
   var [fabSummary, setFabSummary] = useState({});
   var [loading, setLoading] = useState(true);
   var [erectModal, setErectModal] = useState(null);
-  var [ifcMarks2, setIfcMarks2] = useState([]);
+  var [ifcMarks, setIfcMarks] = useState([]);
 
   useEffect(function() { loadAll(); }, [project.id]);
   async function loadAll() {
@@ -1792,4 +1792,4 @@ function Lazy3DViewer(props) {
     </div>
   );
   return <Viewer {...props} />;
-}git add .
+}
