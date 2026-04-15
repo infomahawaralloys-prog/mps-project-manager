@@ -462,16 +462,18 @@ function FabTab({ project, auth }) {
   }
 
   function findHeaderRow(XLSX, ws) {
-    var aoa = XLSX.utils.sheet_to_aoa(ws);
     var markKw = ['mark', 'assembly', 'standard', 'item', 'part'];
     var qtyKw = ['qty', 'quantity', 'nos', 'pcs'];
-    for (var i = 0; i < Math.min(25, aoa.length); i++) {
-      var row = aoa[i];
-      if (!row) continue;
-      var rowStr = row.map(function(c){ return String(c || '').toLowerCase().replace(/\u00a0/g, ' '); });
-      var hasMark = rowStr.some(function(c){ return markKw.some(function(k){ return c.indexOf(k) >= 0; }); });
-      var hasQty = rowStr.some(function(c){ return qtyKw.some(function(k){ return c.indexOf(k) >= 0; }); });
-      if (hasMark && hasQty) return i;
+    for (var r = 0; r < 25; r++) {
+      try {
+        var testRows = XLSX.utils.sheet_to_json(ws, { range: r, header: 1 });
+        if (!testRows || !testRows[0]) continue;
+        var firstRow = testRows[0];
+        var rowStr = firstRow.map(function(c){ return String(c || '').toLowerCase().replace(/\u00a0/g, ' '); });
+        var hasMark = rowStr.some(function(c){ return markKw.some(function(k){ return c.indexOf(k) >= 0; }); });
+        var hasQty = rowStr.some(function(c){ return qtyKw.some(function(k){ return c.indexOf(k) >= 0; }); });
+        if (hasMark && hasQty) return r;
+      } catch(e) { continue; }
     }
     return 0;
   }
