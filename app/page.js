@@ -283,10 +283,35 @@ function InfoTab({ project, auth, onUpdated }) {
   var [editing, setEditing] = useState(false);
   var [form, setForm] = useState(Object.assign({}, project));
 
+  var [drawingLinks, setDrawingLinks] = useState({});
+
   useEffect(function() {
     db.getDrawings(project.id).then(setDrawings);
     db.getActivityLog(project.id, 30).then(setLogs);
   }, [project.id]);
+
+  async function updateDrawing(type, field, value) {
+    if (!auth.isPM) return;
+    var existing = drawings.find(function(d){ return d.drawing_type === type; });
+    var drawData = {
+      project_id: project.id, drawing_type: type,
+      status: existing?.status || 'Not Started', revision: existing?.revision || 0,
+      link: existing?.link || '', remarks: existing?.remarks || '',
+      updated_by: auth.user.id, updated_at: new Date().toISOString()
+    };
+    drawData[field] = value;
+    if (field === 'status') {
+      drawData.revision = (existing?.revision || 0) + (value === 'Revised' ? 1 : 0);
+      if (existing) {
+        await db.addDrawingHistory({ drawing_id: existing.id, old_status: existing.status, new_status: value, revision: drawData.revision, changed_by: auth.user.id });
+      }
+    }
+    await db.upsertDrawing(drawData);
+    await db.logActivity({ project_id: project.id, action_type: 'drawing_update',
+      details: type + ' drawing → ' + (field === 'status' ? value : 'updated ' + field),
+      user_name: auth.userName, user_role: auth.role });
+    db.getDrawings(project.id).then(setDrawings);
+  }
 
   async function saveEdit() {
     try {
@@ -556,6 +581,18 @@ function FabTab({ project, auth }) {
     } catch (err) { alert('Error: ' + err.message); }
   }
 
+  function stageUnlocked(part) {
+    if (!isBuiltup) return true;
+    var stageIdx = STAGES.indexOf(selectedStage);
+    if (stageIdx <= 0) return true;
+    var prevStage = STAGES[stageIdx - 1];
+    if (prevStage === 'cutting' && selectedStage === 'fitting') {
+      var cuttingDone = (fabSummary[part.id] && fabSummary[part.id]['cutting']) || 0;
+      return cuttingDone >= part.qty;
+    }
+    return true;
+  }
+
   var catParts = parts.filter(function(p){ return p.category === selectedCat; });
   var builtupParts = parts.filter(function(p){ return p.category === 'builtup'; });
   var stageProgress = {};
@@ -718,7 +755,7 @@ function FabTab({ project, auth }) {
                     <td className="mono" style={{ color: complete ? '#34d399' : done > 0 ? '#f59e0b' : 'var(--dim)' }}>{done}</td>
                     <td className="mono" style={{ color: complete ? '#34d399' : 'var(--text)' }}>{complete ? '✓' : bal}</td>
                     {isBuiltup && personField && <td>{canEnter && !complete ? <input value={persons[p.id] || ''} onChange={function(e){ setPersons(function(prev){ var n=Object.assign({},prev); n[p.id]=e.target.value; return n; }); }} placeholder={personField} style={{ width:80, fontSize:10, padding:'2px 6px' }} /> : null}</td>}
-                    {canEnter && <td>{!complete && <input type="number" min="0" max={bal} value={entries[p.id] || ''} onChange={function(e){ setEntries(function(prev){ var n=Object.assign({},prev); n[p.id]=parseInt(e.target.value)||0; return n; }); }} style={{ width:50, fontSize:12, padding:'2px 6px', textAlign:'center', borderColor: (entries[p.id] || 0) > 0 ? STAGE_COLORS[selectedStage] : 'var(--border)' }} />}</td>}
+                    {canEnter && <td>{!complete && stageUnlocked(p) ? <input type="number" min="0" max={bal} value={entries[p.id] || ''} onChange={function(e){ setEntries(function(prev){ var n=Object.assign({},prev); n[p.id]=parseInt(e.target.value)||0; return n; }); }} style={{ width:50, fontSize:12, padding:'2px 6px', textAlign:'center', borderColor: (entries[p.id] || 0) > 0 ? STAGE_COLORS[selectedStage] : 'var(--border)' }} /> : !complete && !stageUnlocked(p) ? <span style={{fontSize:8,color:'#f97066'}}>🔒</span> : null}</td>}
                   </tr>
                 );
               })}
@@ -761,9 +798,14 @@ function DispatchTab({ project, auth }) {
   var [form, setForm] = useState({ vehicle_no:'', challan_no:'', driver_name:'', driver_phone:'', net_weight:'', loading_by:'' });
   var [saving, setSaving] = useState(false);
   var [loading, setLoading] = useState(true);
+  var [allParts, setAllParts] = useState([]);
+  var [dispatchParts, setDispatchParts] = useState([]);
 
   useEffect(function() { loadDispatches(); }, [project.id]);
-  async function loadDispatches() { var data = await db.getDispatches(project.id); setDispatches(data || []); setLoading(false); }
+  async function loadDispatches() {
+    var [data, pts] = await Promise.all([db.getDispatches(project.id), db.getParts(project.id)]);
+    setDispatches(data || []); setAllParts(pts || []); setLoading(false);
+  }
 
   async function advanceStatus(d) {
     var idx = DISPATCH_STATUSES.indexOf(d.status); if (idx >= DISPATCH_STATUSES.length - 1) return;
@@ -778,10 +820,12 @@ function DispatchTab({ project, auth }) {
     if (!form.vehicle_no.trim()) return alert('Vehicle No required');
     setSaving(true);
     try {
-      await db.createDispatch(Object.assign({}, form, { project_id: project.id, net_weight: parseFloat(form.net_weight) || 0, created_by: auth.user.id }));
-      await db.logActivity({ project_id: project.id, action_type: 'dispatch_create', details: 'Dispatch ' + form.vehicle_no, user_name: auth.userName, user_role: auth.role });
+      var partsList = dispatchParts.filter(function(dp){ return dp.qty > 0; }).map(function(dp){ return { part_id: dp.part_id, qty: dp.qty }; });
+      await db.createDispatch(Object.assign({}, form, { project_id: project.id, net_weight: parseFloat(form.net_weight) || 0, created_by: auth.user.id }), partsList);
+      var details = 'Dispatch ' + form.vehicle_no + ': ' + partsList.length + ' parts, ' + (form.net_weight || 0) + ' MT';
+      await db.logActivity({ project_id: project.id, action_type: 'dispatch_create', details: details, user_name: auth.userName, user_role: auth.role });
       setForm({ vehicle_no:'', challan_no:'', driver_name:'', driver_phone:'', net_weight:'', loading_by:'' });
-      setShowCreate(false); loadDispatches();
+      setDispatchParts([]); setShowCreate(false); loadDispatches();
     } catch (e) { alert(e.message); }
     setSaving(false);
   }
@@ -809,19 +853,7 @@ function DispatchTab({ project, auth }) {
 
       {canManage && <button onClick={function(){ setShowCreate(!showCreate); }} className="btn-outline" style={{ marginBottom:12, color:'#38bdf8', borderColor:'#38bdf8' }}>🚚 + New Dispatch</button>}
 
-      {showCreate && (
-        <div className="glass-card animate-fade" style={{ padding:16, marginBottom:12, borderLeft:'3px solid #38bdf8' }}>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-            {[['vehicle_no','Vehicle No *'],['challan_no','Challan No'],['driver_name','Driver Name'],['driver_phone','Driver Phone'],['net_weight','Net Weight (MT)'],['loading_by','Loading By']].map(function(f) {
-              return (<div key={f[0]}><label className="mono" style={{fontSize:8,color:'var(--muted)',textTransform:'uppercase'}}>{f[1]}</label><input value={form[f[0]]} onChange={function(e){set(f[0],e.target.value)}} placeholder={f[1]} /></div>);
-            })}
-          </div>
-          <div style={{display:'flex',gap:8,marginTop:12}}>
-            <button onClick={handleCreate} disabled={saving} className="btn-red" style={{padding:'8px 16px'}}>{saving ? 'Creating...' : '✓ Create'}</button>
-            <button onClick={function(){setShowCreate(false)}} className="btn-outline">Cancel</button>
-          </div>
-        </div>
-      )}
+      {showCreate && <DispatchCreateForm project={project} auth={auth} form={form} set={set} saving={saving} handleCreate={handleCreate} onCancel={function(){setShowCreate(false)}} dispatchParts={dispatchParts} setDispatchParts={setDispatchParts} />}
 
       {dispatches.map(function(d) {
         return (
@@ -863,6 +895,7 @@ function ErectionTab({ project, auth }) {
   var [safety, setSafety] = useState([]);
   var [fabSummary, setFabSummary] = useState({});
   var [loading, setLoading] = useState(true);
+  var [erectModal, setErectModal] = useState(null);
 
   useEffect(function() { loadAll(); }, [project.id]);
   async function loadAll() {
@@ -885,6 +918,21 @@ function ErectionTab({ project, auth }) {
   var openSnags = snags.filter(function(s){ return s.status === 'Open'; }).length;
   var canManage = auth.isPM || auth.isSite;
 
+  // Check if part has been dispatched (exists in any dispatch)
+  var dispatchedPartIds = {};
+  function checkDispatched() {
+    db.getDispatches(project.id).then(function(dispatches) {
+      (dispatches || []).forEach(function(d) {
+        if (d.dispatch_parts) {
+          d.dispatch_parts.forEach(function(dp) {
+            dispatchedPartIds[dp.part_id] = d.status;
+          });
+        }
+      });
+    });
+  }
+  useEffect(function() { checkDispatched(); }, [parts]);
+
   function canErectMark(part) {
     if (part.category === 'builtup') {
       var fs = fabSummary[part.id];
@@ -902,6 +950,7 @@ function ErectionTab({ project, auth }) {
         {[
           { id:'dashboard', label:'📊 Dashboard' }, { id:'marks', label:'🏗 Marks (' + parts.length + ')' },
           { id:'ifc', label:'📄 IFC Upload' },
+          { id:'daily', label:'📅 Daily Log' },
           { id:'snags', label:'⚠ Snags (' + openSnags + ')' }, { id:'safety', label:'🦺 Safety' }, { id:'bolts', label:'🔩 Bolts' }
         ].map(function(st) {
           var sel = subTab === st.id;
@@ -950,15 +999,7 @@ function ErectionTab({ project, auth }) {
                   else if (!erected && canManage) {
                     var canE = canErectMark(p);
                     if (!canE.ok) { alert('Cannot erect ' + p.mark + ': ' + canE.reason); return; }
-                    var erector = prompt('Erector name:');
-                    if (erector) {
-                      var crew = prompt('Crew size:', '1');
-                      db.erectMark({ project_id:project.id, part_id:p.id, erection_date:new Date().toISOString().split('T')[0],
-                        erector_name:erector, crew_size:parseInt(crew)||1, created_by:auth.user.id }).then(function(){
-                        db.logActivity({ project_id:project.id, action_type:'erect_toggle', details:p.mark+' ERECTED by '+erector+' crew:'+crew,
-                          user_name:auth.userName, user_role:auth.role }).then(loadAll);
-                      });
-                    }
+                    setErectModal(p);
                   }
                 }} style={{
                   width:22, height:22, borderRadius:4, display:'flex', alignItems:'center', justifyContent:'center',
@@ -977,6 +1018,53 @@ function ErectionTab({ project, auth }) {
             );
           })}
           {parts.length === 0 && <p style={{fontSize:11,color:'var(--dim)',padding:12,textAlign:'center'}}>No parts yet</p>}
+        </div>
+      )}
+
+      {/* Erection Entry Modal */}
+      {erectModal && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.75)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:999, backdropFilter:'blur(4px)' }}>
+          <ErectEntryModal part={erectModal} onConfirm={function(date, erector, crew) {
+            db.erectMark({ project_id:project.id, part_id:erectModal.id, erection_date:date,
+              erector_name:erector, crew_size:parseInt(crew)||1, created_by:auth.user.id }).then(function(){
+              db.logActivity({ project_id:project.id, action_type:'erect_toggle', details:erectModal.mark+' ERECTED by '+erector+' crew:'+crew,
+                user_name:auth.userName, user_role:auth.role }).then(function(){ setErectModal(null); loadAll(); });
+            });
+          }} onCancel={function(){ setErectModal(null); }} />
+        </div>
+      )}
+
+      {subTab === 'daily' && (
+        <div className="glass-card" style={{ padding:16, borderLeft:'3px solid #38bdf8' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
+            <span style={{ fontSize:16 }}>📅</span>
+            <span className="mono" style={{ fontSize:11, color:'var(--dim)', letterSpacing:2, fontWeight:600 }}>DAILY ERECTION LOG</span>
+            <span className="badge" style={{ background:'rgba(56,189,248,0.15)', color:'#38bdf8', marginLeft:'auto' }}>{erectionRecords.length} records</span>
+          </div>
+          {erectionRecords.length > 0 ? (
+            <table className="data-table">
+              <thead><tr><th>Date</th><th>Mark</th><th>Type</th><th>Weight</th><th>Erector</th><th>Crew</th></tr></thead>
+              <tbody>
+                {erectionRecords.map(function(r) {
+                  return (
+                    <tr key={r.id}>
+                      <td className="mono" style={{ color:'var(--muted)' }}>{r.erection_date}</td>
+                      <td><span className="mono" style={{ fontWeight:600, color:'#34d399' }}>{r.parts?.mark || '?'}</span></td>
+                      <td style={{ fontSize:10, color:'var(--dim)' }}>{r.parts?.description || r.parts?.category || ''}</td>
+                      <td className="mono" style={{ fontSize:10 }}>{r.parts?.weight || 0} kg</td>
+                      <td style={{ color:'var(--muted)' }}>{r.erector_name || '—'}</td>
+                      <td className="mono" style={{ textAlign:'center' }}>{r.crew_size || 1}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          ) : (
+            <div style={{ textAlign:'center', padding:20 }}>
+              <div style={{ fontSize:30, marginBottom:8 }}>📅</div>
+              <p style={{ fontSize:12, color:'var(--dim)' }}>No erection records yet</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -1342,6 +1430,151 @@ function IFCUploadSection({ project, parts, auth, canManage, onChanged }) {
     </div>
   );
 }
+
+function ErectEntryModal({ part, onConfirm, onCancel }) {
+  var [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  var [erector, setErector] = useState('');
+  var [crew, setCrew] = useState('1');
+
+  return (
+    <div className="glass-card animate-fade" style={{ padding:24, maxWidth:380, width:'90%', borderLeft:'3px solid #f472b6' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:16 }}>
+        <span style={{ fontSize:18 }}>🏗</span>
+        <h3 className="mono" style={{ fontSize:14, color:'#f472b6' }}>Erect: {part.mark}</h3>
+      </div>
+      <div style={{ fontSize:11, color:'var(--dim)', marginBottom:12 }}>
+        {part.description} · {part.weight} kg · {part.category}
+      </div>
+      <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+        <div>
+          <label className="mono" style={{fontSize:8,color:'var(--muted)',letterSpacing:1}}>DATE</label>
+          <input type="date" value={date} onChange={function(e){setDate(e.target.value)}} />
+        </div>
+        <div>
+          <label className="mono" style={{fontSize:8,color:'var(--muted)',letterSpacing:1}}>ERECTOR NAME</label>
+          <input value={erector} onChange={function(e){setErector(e.target.value)}} placeholder="Erector name" />
+        </div>
+        <div>
+          <label className="mono" style={{fontSize:8,color:'var(--muted)',letterSpacing:1}}>CREW SIZE</label>
+          <input type="number" min="1" value={crew} onChange={function(e){setCrew(e.target.value)}} />
+        </div>
+      </div>
+      <div style={{ display:'flex', gap:8, marginTop:16 }}>
+        <button onClick={onCancel} className="btn-outline" style={{ flex:1 }}>Cancel</button>
+        <button onClick={function(){ if(!erector.trim()){ alert('Enter erector name'); return; } onConfirm(date, erector, parseInt(crew)||1); }} className="btn-red" style={{ flex:1 }}>✓ Erect</button>
+      </div>
+    </div>
+  );
+}
+
+function DispatchCreateForm({ project, auth, form, set, saving, handleCreate, onCancel, dispatchParts, setDispatchParts }) {
+  var [parts, setParts] = useState([]);
+  var [search, setSearch] = useState('');
+  var [catFilter, setCatFilter] = useState('all');
+
+  useEffect(function() { db.getParts(project.id).then(function(p){ setParts(p||[]); }); }, []);
+
+  function addPart(part) {
+    var existing = dispatchParts.find(function(dp){ return dp.part_id === part.id; });
+    if (existing) return;
+    setDispatchParts(function(prev){ return prev.concat([{ part_id: part.id, mark: part.mark, category: part.category, qty: part.qty, weight: part.weight }]); });
+  }
+
+  function removePart(partId) {
+    setDispatchParts(function(prev){ return prev.filter(function(dp){ return dp.part_id !== partId; }); });
+  }
+
+  function updateQty(partId, qty) {
+    setDispatchParts(function(prev){ return prev.map(function(dp){ if(dp.part_id === partId){ return Object.assign({}, dp, {qty: parseInt(qty)||0}); } return dp; }); });
+  }
+
+  var filteredParts = parts.filter(function(p) {
+    if (catFilter !== 'all' && p.category !== catFilter) return false;
+    if (search && p.mark.toLowerCase().indexOf(search.toLowerCase()) < 0) return false;
+    return true;
+  });
+
+  var totalPcs = dispatchParts.reduce(function(a,dp){ return a + dp.qty; }, 0);
+  var totalWt = dispatchParts.reduce(function(a,dp){ return a + (dp.weight * dp.qty); }, 0);
+
+  var CAT_LABELS_SHORT = { anchor_bolts:'AB', builtup:'BU', coldform:'CF', hardware:'HW', roofing:'RF', cladding:'CL', accessories:'AC', deck:'DK' };
+
+  return (
+    <div className="glass-card animate-fade" style={{ padding:16, marginBottom:12, borderLeft:'3px solid #38bdf8' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
+        <span style={{ fontSize:16 }}>🚚</span>
+        <span className="mono" style={{ fontWeight:600, fontSize:12 }}>New Dispatch</span>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+        {[['vehicle_no','Vehicle No *'],['challan_no','Challan No'],['driver_name','Driver Name'],['driver_phone','Driver Phone'],['net_weight','Net Weight (MT)'],['loading_by','Loading By']].map(function(f) {
+          return (<div key={f[0]}><label className="mono" style={{fontSize:8,color:'var(--muted)',textTransform:'uppercase'}}>{f[1]}</label><input value={form[f[0]]} onChange={function(e){set(f[0],e.target.value)}} placeholder={f[1]} /></div>);
+        })}
+      </div>
+
+      {/* Parts Picker */}
+      <div style={{ marginTop:12, padding:12, background:'rgba(10,10,15,0.5)', borderRadius:8 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+          <span className="mono" style={{ fontSize:10, color:'var(--dim)', letterSpacing:1 }}>SELECT PARTS</span>
+          {dispatchParts.length > 0 && <span className="mono" style={{ fontSize:10, color:'#38bdf8' }}>{totalPcs} pcs · {(totalWt/1000).toFixed(2)} MT</span>}
+        </div>
+        <div style={{ display:'flex', gap:6, marginBottom:8 }}>
+          <input value={search} onChange={function(e){setSearch(e.target.value)}} placeholder="Search mark..." style={{ flex:1, fontSize:10, padding:'4px 8px' }} />
+          <select value={catFilter} onChange={function(e){setCatFilter(e.target.value)}} style={{ width:80, fontSize:10, padding:'4px' }}>
+            <option value="all">All</option>
+            <option value="builtup">Builtup</option>
+            <option value="coldform">Coldform</option>
+            <option value="hardware">Hardware</option>
+            <option value="roofing">Roofing</option>
+            <option value="cladding">Cladding</option>
+            <option value="accessories">Acc</option>
+            <option value="deck">Deck</option>
+            <option value="anchor_bolts">AB</option>
+          </select>
+        </div>
+        {/* Available parts */}
+        <div style={{ maxHeight:150, overflowY:'auto', marginBottom:8 }}>
+          {filteredParts.slice(0, 30).map(function(p) {
+            var alreadyAdded = dispatchParts.some(function(dp){ return dp.part_id === p.id; });
+            return (
+              <div key={p.id} onClick={function(){ if(!alreadyAdded) addPart(p); }} style={{
+                display:'flex', alignItems:'center', gap:6, padding:'3px 0', cursor: alreadyAdded ? 'default' : 'pointer',
+                opacity: alreadyAdded ? 0.4 : 1, borderBottom:'1px solid rgba(42,42,58,0.15)'
+              }}>
+                <span className="mono" style={{ fontSize:10, fontWeight:600, width:70 }}>{p.mark}</span>
+                <span className="badge" style={{ fontSize:7, background:'rgba(56,189,248,0.1)', color:'#38bdf8' }}>{CAT_LABELS_SHORT[p.category] || p.category}</span>
+                <span style={{ flex:1, fontSize:9, color:'var(--dim)' }}>x{p.qty} · {p.weight}kg</span>
+                {!alreadyAdded && <span style={{ fontSize:10, color:'#34d399' }}>+ Add</span>}
+              </div>
+            );
+          })}
+        </div>
+        {/* Selected parts */}
+        {dispatchParts.length > 0 && (
+          <div>
+            <span className="mono" style={{ fontSize:9, color:'#34d399', letterSpacing:1 }}>SELECTED ({dispatchParts.length})</span>
+            {dispatchParts.map(function(dp) {
+              return (
+                <div key={dp.part_id} style={{ display:'flex', alignItems:'center', gap:6, padding:'3px 0', borderBottom:'1px solid rgba(42,42,58,0.15)' }}>
+                  <span className="mono" style={{ fontSize:10, fontWeight:600, color:'#34d399', width:70 }}>{dp.mark}</span>
+                  <input type="number" min="1" value={dp.qty} onChange={function(e){ updateQty(dp.part_id, e.target.value); }}
+                    style={{ width:45, fontSize:10, padding:'2px 4px', textAlign:'center' }} />
+                  <span style={{ flex:1, fontSize:9, color:'var(--dim)' }}>{dp.weight}kg ea</span>
+                  <button onClick={function(){ removePart(dp.part_id); }} style={{ background:'none', border:'none', color:'#dc2626', cursor:'pointer', fontSize:12 }}>✕</button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div style={{display:'flex',gap:8,marginTop:12}}>
+        <button onClick={handleCreate} disabled={saving} className="btn-red" style={{padding:'8px 16px'}}>{saving ? 'Creating...' : '✓ Create Dispatch'}</button>
+        <button onClick={onCancel} className="btn-outline">Cancel</button>
+      </div>
+    </div>
+  );
+}
+
 function AccessManager({ project, auth }) {
   var [users, setUsers] = useState([]);
   var [accessList, setAccessList] = useState([]);
