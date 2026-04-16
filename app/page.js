@@ -757,6 +757,15 @@ function FabTab({ project, auth }) {
 
   async function handleSave() {
     if (pendingEntries.length === 0) return;
+    // Safety: clamp any entry that somehow exceeded balance
+    var oversize = pendingEntries.filter(function(p) {
+      var d = (isBuiltup || isColdformCat) ? ((fabSummary[p.id] && fabSummary[p.id][selectedStage]) || 0) : ((fabSummary[p.id] && fabSummary[p.id]['cutting']) || 0);
+      return (entries[p.id] || 0) > (p.qty - d);
+    });
+    if (oversize.length > 0) {
+      alert('Cannot save: ' + oversize.map(function(p){ return p.mark; }).join(', ') + ' exceeds balance. Fix and retry.');
+      return;
+    }
     setSaving(true);
     try {
       var fabEntries = pendingEntries.map(function(p) {
@@ -899,7 +908,7 @@ function FabTab({ project, auth }) {
                     <td className="mono" style={{ color: complete ? '#34d399' : done > 0 ? '#f59e0b' : 'var(--dim)' }}>{done}</td>
                     <td className="mono" style={{ color: complete ? '#34d399' : 'var(--text)' }}>{complete ? '✓' : bal}</td>
                     {isBuiltup && personField && <td>{canEnter && !complete ? <input value={persons[p.id] || ''} onChange={function(e){ setPersons(function(prev){ var n=Object.assign({},prev); n[p.id]=e.target.value; return n; }); }} placeholder={personField} style={{ width:80, fontSize:10, padding:'2px 6px' }} /> : null}</td>}
-                    {canEnter && <td>{!complete && stageUnlocked(p) ? <input type="number" min="0" max={bal} value={entries[p.id] || ''} onChange={function(e){ setEntries(function(prev){ var n=Object.assign({},prev); n[p.id]=parseInt(e.target.value)||0; return n; }); }} style={{ width:50, fontSize:12, padding:'2px 6px', textAlign:'center', borderColor: (entries[p.id] || 0) > 0 ? STAGE_COLORS[selectedStage] : 'var(--border)' }} /> : !complete && !stageUnlocked(p) ? <span style={{fontSize:8,color:'#f97066'}}>🔒</span> : null}</td>}
+                    {canEnter && <td>{!complete && stageUnlocked(p) ? <input type="number" min="0" max={bal} value={entries[p.id] || ''} onChange={function(e){ setEntries(function(prev){ var n=Object.assign({},prev); var v=parseInt(e.target.value)||0; if(v<0)v=0; if(v>bal)v=bal; n[p.id]=v; return n; }); }} style={{ width:50, fontSize:12, padding:'2px 6px', textAlign:'center', borderColor: (entries[p.id] || 0) > 0 ? STAGE_COLORS[selectedStage] : 'var(--border)' }} /> : !complete && !stageUnlocked(p) ? <span style={{fontSize:8,color:'#f97066'}}>🔒</span> : null}</td>}
                   </tr>
                 );
               })}
