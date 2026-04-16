@@ -274,17 +274,39 @@ function ProjectDetail({ project, auth, onUpdated }) {
     return t === 'info';
   };
   var tabs = [
-    { id:'info', label:'📋 Info' }, { id:'fab', label:'🔧 Fabrication' },
-    { id:'dispatch', label:'🚚 Dispatch' }, { id:'erection', label:'🏗 Erection' },
+    { id:'info', label:'Info' }, { id:'fab', label:'Fabrication' },
+    { id:'dispatch', label:'Dispatch' }, { id:'erection', label:'Erection' },
   ].filter(function(t) { return canSeeTab(t.id); });
 
   useEffect(function() { if (!canSeeTab(tab) && tabs.length > 0) setTab(tabs[0].id); }, [auth.role]);
 
   return (
     <div style={{ padding:'0 12px 24px', maxWidth:1000, margin:'0 auto' }}>
-      <div className="tab-bar" style={{ margin:'12px 0 16px', overflowX:'auto' }}>
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 50,
+        margin: '0 -12px 16px', padding: '10px 12px',
+        background: 'rgba(13, 13, 26, 0.75)',
+        backdropFilter: 'blur(20px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+        display: 'flex', gap: 6, overflowX: 'auto'
+      }}>
         {tabs.map(function(t) {
-          return (<div key={t.id} className={'tab-item' + (tab === t.id ? ' active' : '')} onClick={function() { setTab(t.id); }}>{t.label}</div>);
+          var isActive = tab === t.id;
+          return (
+            <button key={t.id} onClick={function() { setTab(t.id); }} style={{
+              flexShrink: 0,
+              padding: '8px 20px',
+              borderRadius: 999,
+              border: isActive ? '1px solid #dc2626' : '1px solid rgba(255, 255, 255, 0.08)',
+              background: isActive ? '#dc2626' : 'rgba(255, 255, 255, 0.03)',
+              color: isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.6)',
+              fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
+              cursor: 'pointer', transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap',
+              boxShadow: isActive ? '0 4px 12px rgba(220, 38, 38, 0.35)' : 'none'
+            }}>{t.label}</button>
+          );
         })}
       </div>
       {tab === 'info' && <InfoTab project={project} auth={auth} onUpdated={onUpdated} />}
