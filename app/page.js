@@ -250,7 +250,7 @@ function CreateProjectForm({ auth, onCreated, onCancel }) {
 function ProjectDetail({ project, auth, onUpdated }) {
   var [tab, setTab] = useState('info');
   var canSeeTab = function(t) {
-    if (auth.isPM || auth.isViewer) return true;
+    if (auth.isPM) return true; 
     if (t === 'fab') return auth.isFab;
     if (t === 'dispatch') return auth.isDispatch;
     if (t === 'erection') return auth.isSite;
