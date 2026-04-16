@@ -1409,6 +1409,7 @@ function IFCUploadSection({ project, parts, auth, canManage, onChanged }) {
           };
         });
 
+        await db.clearIfcMarks(project.id);
         await db.upsertIfcMarks(ifcData);
         await db.logActivity({ project_id: project.id, action_type: 'ifc_upload',
           details: 'IFC uploaded: ' + extractedMarks.length + ' elements, ' + matched + ' matched',
