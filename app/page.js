@@ -76,7 +76,23 @@ export default function App() {
   useEffect(function() { if (auth.user) loadProjects(); }, [auth.user]);
 
   async function loadProjects() {
-    try { var data = await db.getProjects(); setProjects(data || []); } catch (e) { console.error(e); }
+    try {
+      var data = await db.getProjects();
+      if (auth.role === 'client' && auth.user) {
+        var accessible = [];
+        for (var i = 0; i < (data || []).length; i++) {
+          try {
+            var access = await db.getProjectAccess(data[i].id);
+            if (access.some(function(a) { return a.user_id === auth.user.id; })) {
+              accessible.push(data[i]);
+            }
+          } catch(e2) {}
+        }
+        setProjects(accessible);
+      } else {
+        setProjects(data || []);
+      }
+    } catch (e) { console.error(e); }
     setLoading(false);
   }
 
@@ -248,9 +264,10 @@ function CreateProjectForm({ auth, onCreated, onCancel }) {
 }
 
 function ProjectDetail({ project, auth, onUpdated }) {
-  var [tab, setTab] = useState('info');
+  var [tab, setTab] = useState(auth.role === 'client' ? 'erection' : 'info');
   var canSeeTab = function(t) {
-    if (auth.isPM) return true; 
+    if (auth.isPM) return true;
+    if (auth.role === 'client') return true;
     if (t === 'fab') return auth.isFab;
     if (t === 'dispatch') return auth.isDispatch;
     if (t === 'erection') return auth.isSite;
@@ -963,7 +980,7 @@ function DispatchTab({ project, auth }) {
 }
 
 function ErectionTab({ project, auth }) {
-  var [subTab, setSubTab] = useState('dashboard');
+  var [subTab, setSubTab] = useState(auth.role === 'client' ? '3d' : 'dashboard');
   var [parts, setParts] = useState([]);
   var [erectionRecords, setErectionRecords] = useState([]);
   var [snags, setSnags] = useState([]);
@@ -1029,7 +1046,10 @@ function ErectionTab({ project, auth }) {
           { id:'ifc', label:'📄 IFC Upload' },
           { id:'daily', label:'📅 Daily Log' },
           { id:'snags', label:'⚠ Snags (' + openSnags + ')' }, { id:'safety', label:'🦺 Safety' }, { id:'bolts', label:'🔩 Bolts' }
-        ].map(function(st) {
+        ].filter(function(st) {
+          if (auth.role === 'client') return st.id === 'dashboard' || st.id === '3d';
+          return true;
+        }).map(function(st) {
           var sel = subTab === st.id;
           return (
             <button key={st.id} onClick={function(){ setSubTab(st.id); }} style={{
