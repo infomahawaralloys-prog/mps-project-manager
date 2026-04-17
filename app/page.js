@@ -1021,6 +1021,7 @@ function FabTab({ project, auth }) {
                 <span style={{ fontSize:18 }}>✅</span>
                 <h3 className="mono" style={{ fontSize:14, color:STAGE_COLORS[selectedStage] || '#dc2626' }}>Confirm Save</h3>
               </div>
+              <div style={{ maxHeight:'50vh', overflowY:'auto' }}>
               {pendingEntries.map(function(p) {
                 return (
                   <div key={p.id} style={{ display:'flex', justifyContent:'space-between', padding:'6px 0', borderBottom:'1px solid rgba(42,42,58,0.3)' }}>
@@ -1030,6 +1031,7 @@ function FabTab({ project, auth }) {
                   </div>
                 );
               })}
+              </div>
               <div style={{ display:'flex', gap:8, marginTop:16 }}>
                 <button onClick={function(){ setShowConfirm(false); }} className="btn-outline" style={{ flex:1 }}>← Go Back</button>
                 <button onClick={handleSave} disabled={saving} className="btn-red" style={{ flex:1 }}>{saving ? 'Saving...' : '✓ Confirm'}</button>
