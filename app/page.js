@@ -1157,6 +1157,7 @@ function ErectionTab({ project, auth }) {
   var [fabSummary, setFabSummary] = useState({});
   var [loading, setLoading] = useState(true);
   var [erectModal, setErectModal] = useState(null);
+  var [erectionSearch, setErectionSearch] = useState('');
 
   useEffect(function() { loadAll(); }, [project.id]);
   async function loadAll() {
@@ -1284,7 +1285,7 @@ function ErectionTab({ project, auth }) {
               <span style={{ fontSize:9, color:'var(--dim)' }}>{parts.filter(function(p) { return !erectedPartIds[p.id] && canErectMark(p).ok; }).length} parts ready</span>
             </div>
           )}
-          {parts.map(function(p) {
+          {parts.filter(function(p){ return !erectionSearch || p.mark.toLowerCase().indexOf(erectionSearch.toLowerCase()) >= 0 || (p.description || '').toLowerCase().indexOf(erectionSearch.toLowerCase()) >= 0; }).map(function(p) {
             var erected = !!erectedPartIds[p.id];
             var gate = canErectMark(p);
             return (
