@@ -1167,11 +1167,24 @@ function ErectionTab({ project, auth }) {
   useEffect(function() { loadAll(); }, [project.id]);
   async function loadAll() {
     setLoading(true);
-    var [p, er, sn, bl, sf, fs] = await Promise.all([
+    var [p, er, sn, bl, sf, fs, disp] = await Promise.all([
       db.getParts(project.id), db.getErectionRecords(project.id), db.getSnags(project.id),
-      db.getBoltRecords(project.id), db.getSafetyChecks(project.id), db.getFabSummary(project.id)
+      db.getBoltRecords(project.id), db.getSafetyChecks(project.id), db.getFabSummary(project.id),
+      db.getDispatches(project.id)
     ]);
-    setParts(p||[]); setErectionRecords(er||[]); setSnags(sn||[]); setBolts(bl||[]); setSafety(sf||[]); setFabSummary(fs||{}); setLoading(false);
+    setParts(p||[]); setErectionRecords(er||[]); setSnags(sn||[]); setBolts(bl||[]); setSafety(sf||[]); setFabSummary(fs||{});
+    // Build dispatched qty map from dispatch data
+    var dispMap = {};
+    (disp || []).forEach(function(d) {
+      if (d.dispatch_parts) {
+        d.dispatch_parts.forEach(function(dp) {
+          if (!dispMap[dp.part_id]) dispMap[dp.part_id] = 0;
+          dispMap[dp.part_id] += dp.qty;
+        });
+      }
+    });
+    setDispatchedPartIds(dispMap);
+    setLoading(false);
   }
 
   var erectedPartIds = {}; erectionRecords.forEach(function(r){ erectedPartIds[r.part_id] = r; });
@@ -1185,23 +1198,8 @@ function ErectionTab({ project, auth }) {
   var openSnags = snags.filter(function(s){ return s.status === 'Open'; }).length;
   var canManage = auth.isPM || auth.isSite;
 
-  // Track dispatched qty per part (React state so UI updates)
+  // Dispatched qty per part (loaded in loadAll)
   var [dispatchedPartIds, setDispatchedPartIds] = useState({});
-  function checkDispatched() {
-    db.getDispatches(project.id).then(function(dispatches) {
-      var dispatched = {};
-      (dispatches || []).forEach(function(d) {
-        if (d.dispatch_parts) {
-          d.dispatch_parts.forEach(function(dp) {
-            if (!dispatched[dp.part_id]) dispatched[dp.part_id] = 0;
-            dispatched[dp.part_id] += dp.qty;
-          });
-        }
-      });
-      setDispatchedPartIds(dispatched);
-    });
-  }
-  useEffect(function() { checkDispatched(); }, [parts]);
 
   function canErectMark(part) {
     // Check fabrication complete
