@@ -354,7 +354,7 @@ const normalizeMark = (m) => (m || '').trim().toUpperCase().replace(/[\s_-]/g, '
 // ════════════════════════════════════════════════════════════════
 // REACT COMPONENT
 // ════════════════════════════════════════════════════════════════
-export default function IFC3DReal({ project, parts, auth, erectedPartIds, onChanged }) {
+export default function IFC3DReal({ project, parts, auth, erectedPartIds, dispatchedPartIds, onChanged }) {
   const canvasRef = useRef(null);
   const mountRef = useRef(null);
   const THREE_ref = useRef(null);
@@ -479,6 +479,17 @@ export default function IFC3DReal({ project, parts, auth, erectedPartIds, onChan
       setBottomSheet(null);
       setTimeout(() => setToast(null), 3500);
       return;
+    }
+    // Check dispatch hardgate
+    const partData = parts.find(p => p.id === bottomSheet.partId);
+    if (partData && !bottomSheet.erected) {
+      const dispQty = (dispatchedPartIds || {})[bottomSheet.partId] || 0;
+      if (dispQty < (partData.qty || 1)) {
+        setToast(`Cannot erect ${bottomSheet.mark}: Not dispatched (${dispQty}/${partData.qty})`);
+        setBottomSheet(null);
+        setTimeout(() => setToast(null), 3500);
+        return;
+      }
     }
     try {
       const result = await db.toggleErection(

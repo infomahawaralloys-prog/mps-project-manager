@@ -1364,7 +1364,7 @@ function ErectionTab({ project, auth }) {
         </div>
       )}
 
-      {subTab === '3d' && <IFC3DReal project={project} parts={parts} auth={auth} erectedPartIds={erectedPartIds} onChanged={loadAll} />}
+      {subTab === '3d' && <IFC3DReal project={project} parts={parts} auth={auth} erectedPartIds={erectedPartIds} dispatchedPartIds={dispatchedPartIds} onChanged={loadAll} />}
       {subTab === 'ifc' && <IFCUploadSection project={project} parts={parts} auth={auth} canManage={canManage} onChanged={loadAll} />}
 
       {subTab === 'snags' && <SnagSection project={project} snags={snags} auth={auth} canManage={canManage} onChanged={loadAll} />}
