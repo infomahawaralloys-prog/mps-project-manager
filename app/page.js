@@ -492,6 +492,7 @@ function FabTab({ project, auth }) {
   var [showConfirm, setShowConfirm] = useState(false);
   var [saving, setSaving] = useState(false);
   var [showABForm, setShowABForm] = useState(false);
+  var [searchTerm, setSearchTerm] = useState('');
   var [abForm, setAbForm] = useState({ mark:'', qty:'', weight:'' });
 
   useEffect(function() { loadData(); }, [project.id]);
@@ -982,6 +983,13 @@ function FabTab({ project, auth }) {
             </button>
           )}
         </div>
+        <div style={{ display:'flex', gap:8, marginBottom:10, alignItems:'center' }}>
+          <input placeholder="\u{1F50D} Search marks..." value={searchTerm} onChange={function(e){ setSearchTerm(e.target.value); }} style={{ flex:1, fontSize:11, padding:'6px 10px', background:'rgba(255,255,255,0.04)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)' }} />
+          {canEnter && (isBuiltup || isColdformCat) && (
+            <button onClick={function(){ var ne = Object.assign({}, entries); filteredParts.forEach(function(p){ var d = (isBuiltup || isColdformCat) ? ((fabSummary[p.id] && fabSummary[p.id][selectedStage]) || 0) : 0; var b = p.qty - d; if(b > 0) ne[p.id] = b; }); setEntries(ne); }} className="btn-outline" style={{ fontSize:10, padding:'5px 12px', whiteSpace:'nowrap' }}>\u2713 Tick All</button>
+          )}
+          {searchTerm && <button onClick={function(){ setSearchTerm(''); }} className="btn-outline" style={{ fontSize:10, padding:'5px 10px' }}>\u2717</button>}
+        </div>
         {catParts.length === 0 ? (
           <div style={{ textAlign:'center', padding:'30px 20px' }}>
             <div style={{ fontSize:30, marginBottom:8 }}>{CAT_ICONS[selectedCat]}</div>
@@ -992,7 +1000,7 @@ function FabTab({ project, auth }) {
             <thead><tr><th>Mark</th><th>Desc</th>{!(isBuiltup || isColdformCat) && <th>Color</th>}<th>Qty</th>{!(isBuiltup || isColdformCat) && <th>Area</th>}<th>Done</th><th>Bal</th>
               {(isBuiltup || isColdformCat) && personField && <th>{personField}</th>}{canEnter && (isBuiltup || isColdformCat) && <th>Today</th>}</tr></thead>
             <tbody>
-              {catParts.map(function(p) {
+              {filteredParts.map(function(p) {
                 var done = (isBuiltup || isColdformCat) ? ((fabSummary[p.id] && fabSummary[p.id][selectedStage]) || 0) : ((fabSummary[p.id] && fabSummary[p.id]['cutting']) || 0);
                 var bal = p.qty - done; var complete = bal <= 0;
                 return (
