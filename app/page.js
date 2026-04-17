@@ -987,7 +987,7 @@ function FabTab({ project, auth }) {
         <div style={{ display:'flex', gap:8, marginBottom:10, alignItems:'center' }}>
           <input placeholder="Search marks..." value={searchTerm} onChange={function(e){ setSearchTerm(e.target.value); }} style={{ flex:1, fontSize:11, padding:'6px 10px', background:'rgba(255,255,255,0.04)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)' }} />
           {canEnter && (isBuiltup || isColdformCat) && (
-            <button onClick={function(){ var ne = Object.assign({}, entries); filteredParts.forEach(function(p){ var d = (isBuiltup || isColdformCat) ? ((fabSummary[p.id] && fabSummary[p.id][selectedStage]) || 0) : 0; var b = p.qty - d; if(b > 0) ne[p.id] = b; }); setEntries(ne); }} className="btn-outline" style={{ fontSize:10, padding:'5px 12px', whiteSpace:'nowrap' }}>Tick All</button>
+            <button onClick={function(){ var ne = Object.assign({}, entries); filteredParts.forEach(function(p){ var d = (isBuiltup || isColdformCat) ? ((fabSummary[p.id] && fabSummary[p.id][selectedStage]) || 0) : 0; var b = p.qty - d; if(b > 0 && stageUnlocked(p)) ne[p.id] = b; }); setEntries(ne); }} className="btn-outline" style={{ fontSize:10, padding:'5px 12px', whiteSpace:'nowrap' }}>Tick All</button>
           )}
           {searchTerm && <button onClick={function(){ setSearchTerm(''); }} className="btn-outline" style={{ fontSize:10, padding:'5px 10px' }}>x</button>}
         </div>
