@@ -804,6 +804,7 @@ function FabTab({ project, auth }) {
   }
 
   var catParts = parts.filter(function(p){ return p.category === selectedCat; });
+  var filteredParts = searchTerm ? catParts.filter(function(p){ return p.mark.toLowerCase().indexOf(searchTerm.toLowerCase()) >= 0 || (p.description || "").toLowerCase().indexOf(searchTerm.toLowerCase()) >= 0; }) : catParts;
   var builtupParts = parts.filter(function(p){ return p.category === 'builtup'; });
   var stageProgress = {};
   var isColdformCat = selectedCat === 'coldform';
