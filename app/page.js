@@ -624,47 +624,123 @@ function FabTab({ project, auth }) {
 
   async function handleSheetingUpload(e) {
     var file = e.target.files[0]; if (!file) return;
+    var unitWt = prompt('Enter unit weight of sheet material (kg/m\u00b2):\n\nCommon values:\n0.50mm Hi-Rib = 4.4\n0.60mm Hi-Rib = 5.3\n0.47mm Hi-Rib = 4.1', '4.4');
+    if (!unitWt) return;
+    unitWt = parseFloat(unitWt) || 4.4;
     var XLSX = await import('xlsx');
     var reader = new FileReader();
     reader.onload = async function(ev) {
       try {
         var wb = XLSX.read(ev.target.result, { type:'binary' });
         var newParts = [];
-        // Roofing
-        var roofSheet = wb.SheetNames.find(function(s){ var u = s.toUpperCase(); return u.indexOf('ROOF') >= 0; });
-        if (roofSheet) {
-          smartParseSheet(XLSX, wb.Sheets[roofSheet]).forEach(function(p) {
-            newParts.push({ project_id: project.id, category:'roofing', mark: p.mark, description: p.description, qty: p.qty, weight: p.weight, area: p.area, color: p.color });
+        var POLY_PREFIXES = ['WP','PC','SKY','LT'];
+
+        // Dedicated sheeting parser: find Dwg. Ref. header in each sheet
+        wb.SheetNames.forEach(function(sn) {
+          var su = sn.toUpperCase();
+          var defaultCat = null;
+          if (su.indexOf('ROOF') >= 0) defaultCat = 'roofing';
+          else if (su.indexOf('CLAD') >= 0 || su.indexOf('WALL') >= 0) defaultCat = 'cladding';
+          else if (su.indexOf('FLASH') >= 0 || su.indexOf('TRIM') >= 0 || su.indexOf('ACCESS') >= 0) defaultCat = 'accessories';
+          if (!defaultCat) return;
+
+          var aoa = XLSX.utils.sheet_to_aoa(wb.Sheets[sn]);
+          var headerIdx = -1;
+          for (var i = 0; i < Math.min(25, aoa.length); i++) {
+            if (!aoa[i]) continue;
+            var found = aoa[i].some(function(c) {
+              var s = String(c || '').toLowerCase();
+              return s.indexOf('dwg') >= 0 && s.indexOf('ref') >= 0;
+            });
+            if (found) { headerIdx = i; break; }
+          }
+          if (headerIdx < 0) return;
+
+          var rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { range: headerIdx, defval: '' });
+          if (!rows || rows.length === 0) return;
+          var headers = Object.keys(rows[0]);
+
+          var markCol = findCol(headers, ['dwg', 'ref'], []);
+          var descCol = findCol(headers, ['item', 'sketch'], ['weight','qty','nos']);
+          var qtyCol = findCol(headers, ['nos'], []);
+          var areaSqCol = null;
+          for (var ai = 0; ai < headers.length; ai++) {
+            var ahl = headers[ai].toLowerCase();
+            if (ahl.indexOf('sq') >= 0 && ahl.indexOf('mtr') >= 0) { areaSqCol = headers[ai]; break; }
+          }
+          var lengthCol = null;
+          for (var li = 0; li < headers.length; li++) {
+            var lhl = headers[li].toLowerCase();
+            if (lhl.indexOf('mtr') >= 0 && lhl.indexOf('sq') < 0) { lengthCol = headers[li]; break; }
+          }
+          var wtCol = findCol(headers, ['weight', 'wt'], []);
+          var colorCol = findCol(headers, ['colour', 'color'], []);
+          if (!colorCol) colorCol = findCol(headers, ['remark'], []);
+          if (!markCol) return;
+
+          rows.forEach(function(r) {
+            var rawMark = String(r[markCol] || '').replace(/\u00a0/g, '').trim();
+            if (!rawMark || rawMark === 'NaN' || rawMark.toLowerCase() === 'nan') return;
+            if (/^\d+\.?\d*$/.test(rawMark.replace(/-/g, ''))) return;
+            var ml = rawMark.toLowerCase();
+            if (ml.indexOf('total') >= 0 || ml.indexOf('dwg') >= 0 || ml.indexOf('grand') >= 0) return;
+
+            var qtyRaw = parseFloat(r[qtyCol]) || 0;
+            var qty = qtyRaw > 0 ? Math.ceil(qtyRaw) : 0;
+            if (qty <= 0) return;
+
+            var areaSqm = areaSqCol ? (parseFloat(r[areaSqCol]) || 0) : 0;
+            var lengthM = lengthCol ? (parseFloat(r[lengthCol]) || 0) : 0;
+
+            var mu = rawMark.toUpperCase();
+            var category = defaultCat;
+            if (/^FT/.test(mu)) category = 'accessories';
+            var isPoly = POLY_PREFIXES.some(function(px) { return mu.indexOf(px) === 0; });
+            if (isPoly) category = 'accessories';
+
+            var totalWeight = 0;
+            if (wtCol) { var wv = parseFloat(r[wtCol]); if (wv > 0) totalWeight = wv; }
+            if (totalWeight === 0 && areaSqm > 0 && (category === 'roofing' || category === 'cladding')) {
+              totalWeight = areaSqm * unitWt;
+            }
+            var perPieceWt = qty > 0 ? Math.round(totalWeight / qty * 1000) / 1000 : 0;
+            if (category === 'accessories') { perPieceWt = 0; }
+
+            var areaField = 0;
+            if (category === 'accessories') {
+              areaField = isPoly ? areaSqm : lengthM;
+            } else {
+              areaField = areaSqm;
+            }
+
+            var color = '';
+            if (colorCol) {
+              var cv = String(r[colorCol] || '').trim().toUpperCase();
+              if (cv && cv !== 'NAN' && !/^\d+\.?\d*$/.test(cv)) color = cv;
+            }
+            var desc = descCol ? String(r[descCol] || '').replace(/\u00a0/g, ' ').trim() : '';
+            if (desc.toLowerCase() === 'nan') desc = '';
+
+            newParts.push({ project_id: project.id, category: category, mark: rawMark, description: desc, qty: qty, weight: perPieceWt, area: Math.round(areaField * 100) / 100, color: color });
           });
-        }
-        // Cladding
-        var cladSheet = wb.SheetNames.find(function(s){ return s.toUpperCase().indexOf('CLAD') >= 0 || s.toUpperCase().indexOf('WALL') >= 0; });
-        if (cladSheet && cladSheet !== roofSheet) {
-          smartParseSheet(XLSX, wb.Sheets[cladSheet]).forEach(function(p) {
-            newParts.push({ project_id: project.id, category:'cladding', mark: p.mark, description: p.description, qty: p.qty, weight: p.weight, area: p.area, color: p.color });
-          });
-        }
-        // Accessories
-        var accSheet = wb.SheetNames.find(function(s){ var u = s.toUpperCase(); return u.indexOf('FLASH') >= 0 || u.indexOf('TRIM') >= 0 || u.indexOf('ACCESS') >= 0; });
-        if (accSheet && accSheet !== roofSheet && accSheet !== cladSheet) {
-          smartParseSheet(XLSX, wb.Sheets[accSheet]).forEach(function(p) {
-            newParts.push({ project_id: project.id, category:'accessories', mark: p.mark, description: p.description, qty: p.qty, weight: p.weight, color: p.color });
-          });
-        }
-        // If no specific sheets found, try parsing all sheets
-        if (newParts.length === 0) {
-          wb.SheetNames.forEach(function(sn) {
-            var parsed = smartParseSheet(XLSX, wb.Sheets[sn]);
-            parsed.forEach(function(p) { newParts.push({ project_id: project.id, category:'roofing', mark: p.mark, description: p.description, qty: p.qty, weight: p.weight, area: p.area, color: p.color }); });
-          });
-        }
-        if (newParts.length === 0) { alert('No sheeting parts found. Make sure the file has columns for Mark and Qty/Weight.'); return; }
+        });
+
+        // Deduplicate: suffix ALL duplicates with color
+        var byCatMark = {};
+        newParts.forEach(function(p) { var k = p.category + '::' + p.mark; if (!byCatMark[k]) byCatMark[k] = []; byCatMark[k].push(p); });
+        Object.keys(byCatMark).forEach(function(k) { var g = byCatMark[k]; if (g.length <= 1) return; g.forEach(function(p) { if (p.color) p.mark = p.mark + '-' + p.color; }); });
+        // Second pass: running number for remaining dups
+        var byCatMark2 = {};
+        newParts.forEach(function(p) { var k = p.category + '::' + p.mark; if (!byCatMark2[k]) byCatMark2[k] = []; byCatMark2[k].push(p); });
+        Object.keys(byCatMark2).forEach(function(k) { var g = byCatMark2[k]; if (g.length <= 1) return; for (var di = 1; di < g.length; di++) { g[di].mark = g[di].mark + '-' + (di + 1); } });
+
+        if (newParts.length === 0) { alert('No sheeting parts found. Make sure the file has Dwg. Ref. column.'); return; }
         await db.deleteParts(project.id, 'roofing'); await db.deleteParts(project.id, 'cladding'); await db.deleteParts(project.id, 'accessories');
         await db.upsertParts(newParts);
-        var counts = {}; newParts.forEach(function(p){ counts[p.category] = (counts[p.category]||0) + 1; });
-        await db.logActivity({ project_id: project.id, action_type: 'parts_upload', details: 'Uploaded Sheeting BOQ: ' + Object.keys(counts).map(function(k){ return counts[k] + ' ' + k; }).join(', '), user_name: auth.userName, user_role: auth.role });
+        var counts = {}; newParts.forEach(function(p) { counts[p.category] = (counts[p.category] || 0) + 1; });
+        await db.logActivity({ project_id: project.id, action_type: 'parts_upload', details: 'Uploaded Sheeting BOQ: ' + Object.keys(counts).map(function(k) { return counts[k] + ' ' + k; }).join(', '), user_name: auth.userName, user_role: auth.role });
         loadData();
-        alert('Sheeting BOQ uploaded: ' + newParts.length + ' parts');
+        alert('Sheeting BOQ uploaded: ' + newParts.length + ' parts (' + Object.keys(counts).map(function(k) { return counts[k] + ' ' + k; }).join(', ') + ')');
       } catch (err) { alert('Error reading Sheeting BOQ: ' + err.message); }
     };
     reader.readAsBinaryString(file); e.target.value = '';
@@ -836,6 +912,25 @@ function FabTab({ project, auth }) {
               <div className="mono" style={{ fontSize:9, fontWeight:700, color:CAT_COLORS[cat], marginTop:6 }}>{CAT_LABELS[cat]}</div>
               <div className="mono" style={{ fontSize:14, fontWeight:700, marginTop:2 }}>{total}</div>
               <div style={{ fontSize:8, color:'var(--dim)' }}>{cp.length} marks</div>
+              {(cat === 'roofing' || cat === 'cladding') && cp.length > 0 && (
+                <div style={{ fontSize:7, color:'var(--muted)', marginTop:2 }}>
+                  {cp.reduce(function(a,p){ return a + (p.area || 0); }, 0).toFixed(0)} m\u00b2 \u00b7 {cp.reduce(function(a,p){ return a + (p.weight * p.qty); }, 0).toFixed(0)} kg
+                </div>
+              )}
+              {cat === 'accessories' && cp.length > 0 && (
+                <div style={{ fontSize:7, color:'var(--muted)', marginTop:2 }}>
+                  {(function() {
+                    var polyParts = cp.filter(function(p) { return /^(WP|PC|SKY|LT)/i.test(p.mark); });
+                    var otherParts = cp.filter(function(p) { return !/^(WP|PC|SKY|LT)/i.test(p.mark); });
+                    var polyArea = polyParts.reduce(function(a,p){ return a + (p.area || 0); }, 0);
+                    var otherRmt = otherParts.reduce(function(a,p){ return a + (p.area || 0); }, 0);
+                    var parts = [];
+                    if (polyArea > 0) parts.push(polyArea.toFixed(0) + ' m\u00b2 poly');
+                    if (otherRmt > 0) parts.push(otherRmt.toFixed(0) + ' rmt');
+                    return parts.join(' \u00b7 ') || '';
+                  })()}
+                </div>
+              )}
             </div>
           );
         })}
@@ -881,7 +976,7 @@ function FabTab({ project, auth }) {
               {isBuiltup ? STAGE_LABELS[selectedStage].toUpperCase() + ' ' : isColdformCat ? (COLDFORM_STAGE_LABELS[selectedStage] || '').toUpperCase() + ' ' : ''}{CAT_LABELS[selectedCat].toUpperCase()} ({catParts.length})
             </span>
           </div>
-          {canEnter && pendingEntries.length > 0 && (
+          {canEnter && (isBuiltup || isColdformCat) && pendingEntries.length > 0 && (
             <button onClick={function(){ setShowConfirm(true); }} className="btn-red" style={{ padding:'6px 14px', fontSize:11, display:'flex', alignItems:'center', gap:4 }}>
               💾 Save ({pendingEntries.length})
             </button>
@@ -894,8 +989,8 @@ function FabTab({ project, auth }) {
           </div>
         ) : (
           <table className="data-table">
-            <thead><tr><th>Mark</th><th>Desc</th><th>Qty</th><th>Done</th><th>Bal</th>
-              {(isBuiltup || isColdformCat) && personField && <th>{personField}</th>}{canEnter && <th>Today</th>}</tr></thead>
+            <thead><tr><th>Mark</th><th>Desc</th>{!(isBuiltup || isColdformCat) && <th>Color</th>}<th>Qty</th>{!(isBuiltup || isColdformCat) && <th>Area</th>}<th>Done</th><th>Bal</th>
+              {(isBuiltup || isColdformCat) && personField && <th>{personField}</th>}{canEnter && (isBuiltup || isColdformCat) && <th>Today</th>}</tr></thead>
             <tbody>
               {catParts.map(function(p) {
                 var done = (isBuiltup || isColdformCat) ? ((fabSummary[p.id] && fabSummary[p.id][selectedStage]) || 0) : ((fabSummary[p.id] && fabSummary[p.id]['cutting']) || 0);
@@ -904,11 +999,13 @@ function FabTab({ project, auth }) {
                   <tr key={p.id} style={ complete ? { opacity:0.6 } : {} }>
                     <td><span className="mono" style={{ fontWeight:600, color: complete ? '#34d399' : '#dc2626' }}>{complete ? '✓ ' : ''}{p.mark}</span></td>
                     <td style={{ color:'var(--dim)', fontSize:11 }}>{p.description}</td>
+                    {!(isBuiltup || isColdformCat) && <td style={{ color:'var(--muted)', fontSize:10 }}>{p.color || '-'}</td>}
                     <td className="mono">{p.qty}</td>
+                    {!(isBuiltup || isColdformCat) && <td className="mono" style={{ fontSize:10 }}>{p.area ? (p.area + (/^(WP|PC|SKY|LT)/i.test(p.mark) ? ' m\u00b2' : (selectedCat === 'accessories' ? ' rmt' : ' m\u00b2'))) : '-'}</td>}
                     <td className="mono" style={{ color: complete ? '#34d399' : done > 0 ? '#f59e0b' : 'var(--dim)' }}>{done}</td>
                     <td className="mono" style={{ color: complete ? '#34d399' : 'var(--text)' }}>{complete ? '✓' : bal}</td>
                     {isBuiltup && personField && <td>{canEnter && !complete ? <input value={persons[p.id] || ''} onChange={function(e){ setPersons(function(prev){ var n=Object.assign({},prev); n[p.id]=e.target.value; return n; }); }} placeholder={personField} style={{ width:80, fontSize:10, padding:'2px 6px' }} /> : null}</td>}
-                    {canEnter && <td>{!complete && stageUnlocked(p) ? <input type="number" min="0" max={bal} value={entries[p.id] || ''} onChange={function(e){ setEntries(function(prev){ var n=Object.assign({},prev); var v=parseInt(e.target.value)||0; if(v<0)v=0; if(v>bal)v=bal; n[p.id]=v; return n; }); }} style={{ width:50, fontSize:12, padding:'2px 6px', textAlign:'center', borderColor: (entries[p.id] || 0) > 0 ? STAGE_COLORS[selectedStage] : 'var(--border)' }} /> : !complete && !stageUnlocked(p) ? <span style={{fontSize:8,color:'#f97066'}}>🔒</span> : null}</td>}
+                    {canEnter && (isBuiltup || isColdformCat) && <td>{!complete && stageUnlocked(p) ? <input type="number" min="0" max={bal} value={entries[p.id] || ''} onChange={function(e){ setEntries(function(prev){ var n=Object.assign({},prev); var v=parseInt(e.target.value)||0; if(v<0)v=0; if(v>bal)v=bal; n[p.id]=v; return n; }); }} style={{ width:50, fontSize:12, padding:'2px 6px', textAlign:'center', borderColor: (entries[p.id] || 0) > 0 ? STAGE_COLORS[selectedStage] : 'var(--border)' }} /> : !complete && !stageUnlocked(p) ? <span style={{fontSize:8,color:'#f97066'}}>🔒</span> : null}</td>}
                   </tr>
                 );
               })}
