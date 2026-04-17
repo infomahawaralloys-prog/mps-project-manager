@@ -1179,27 +1179,37 @@ function ErectionTab({ project, auth }) {
   var openSnags = snags.filter(function(s){ return s.status === 'Open'; }).length;
   var canManage = auth.isPM || auth.isSite;
 
-  // Check if part has been dispatched (exists in any dispatch)
-  var dispatchedPartIds = {};
+  // Track dispatched qty per part (React state so UI updates)
+  var [dispatchedPartIds, setDispatchedPartIds] = useState({});
   function checkDispatched() {
     db.getDispatches(project.id).then(function(dispatches) {
+      var dispatched = {};
       (dispatches || []).forEach(function(d) {
         if (d.dispatch_parts) {
           d.dispatch_parts.forEach(function(dp) {
-            dispatchedPartIds[dp.part_id] = d.status;
+            if (!dispatched[dp.part_id]) dispatched[dp.part_id] = 0;
+            dispatched[dp.part_id] += dp.qty;
           });
         }
       });
+      setDispatchedPartIds(dispatched);
     });
   }
   useEffect(function() { checkDispatched(); }, [parts]);
 
   function canErectMark(part) {
+    // Check fabrication complete
     if (part.category === 'builtup') {
       var fs = fabSummary[part.id];
-      var paintingDone = fs && fs.painting >= part.qty;
-      if (!paintingDone) return { ok: false, reason: 'Painting incomplete' };
+      if (!fs || !fs.painting || fs.painting < part.qty) return { ok: false, reason: 'Painting incomplete' };
     }
+    if (part.category === 'coldform') {
+      var fs = fabSummary[part.id];
+      if (!fs || !fs.cutting || fs.cutting < part.qty) return { ok: false, reason: 'Roll Forming incomplete' };
+    }
+    // Check dispatched
+    var dispQty = dispatchedPartIds[part.id] || 0;
+    if (dispQty < part.qty) return { ok: false, reason: 'Not dispatched (' + dispQty + '/' + part.qty + ')' };
     return { ok: true, reason: '' };
   }
 
@@ -1252,8 +1262,28 @@ function ErectionTab({ project, auth }) {
           <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
             <span style={{ fontSize:16 }}>🏗</span>
             <span className="mono" style={{ fontSize:13, color:'var(--dim)', letterSpacing:2, fontWeight:600 }}>MARKS LIST</span>
-            <span style={{ fontSize:9, color:'var(--dim)', marginLeft:'auto' }}>🔒 = Gate failed (painting/dispatch incomplete)</span>
+            <span style={{ fontSize:9, color:'var(--dim)', marginLeft:'auto' }}>🔒 = Fab or dispatch incomplete</span>
           </div>
+          {canManage && (
+            <div style={{ display:'flex', gap:8, marginBottom:10, alignItems:'center' }}>
+              <button onClick={function() {
+                var erector = prompt('Enter erector/supervisor name for Erect All:');
+                if (!erector) return;
+                var today = new Date().toISOString().split('T')[0];
+                var eligible = parts.filter(function(p) { return !erectedPartIds[p.id] && canErectMark(p).ok; });
+                if (eligible.length === 0) { alert('No eligible parts to erect. Check dispatch and fabrication status.'); return; }
+                if (!confirm('Erect ' + eligible.length + ' parts as erected by ' + erector + '?')) return;
+                Promise.all(eligible.map(function(p) {
+                  return db.erectMark({ project_id: project.id, part_id: p.id, erection_date: today, erector_name: erector, crew_size: 1, created_by: auth.user.id });
+                })).then(function() {
+                  db.logActivity({ project_id: project.id, action_type: 'erect_toggle', details: 'Bulk erect: ' + eligible.length + ' parts by ' + erector, user_name: auth.userName, user_role: auth.role });
+                  loadAll();
+                  alert(eligible.length + ' parts erected successfully!');
+                }).catch(function(err) { alert('Error: ' + err.message); });
+              }} className="btn-red" style={{ padding:'6px 14px', fontSize:11 }}>Erect All Eligible</button>
+              <span style={{ fontSize:9, color:'var(--dim)' }}>{parts.filter(function(p) { return !erectedPartIds[p.id] && canErectMark(p).ok; }).length} parts ready</span>
+            </div>
+          )}
           {parts.map(function(p) {
             var erected = !!erectedPartIds[p.id];
             var gate = canErectMark(p);
