@@ -1774,12 +1774,29 @@ function DispatchCreateForm({ project, auth, form, set, saving, handleCreate, on
   var [search, setSearch] = useState('');
   var [catFilter, setCatFilter] = useState('all');
 
-  useEffect(function() { db.getParts(project.id).then(function(p){ setParts(p||[]); }); }, []);
+  var [dispatchedQty, setDispatchedQty] = useState({});
+  useEffect(function() {
+    Promise.all([db.getParts(project.id), db.getDispatches(project.id)]).then(function(res) {
+      setParts(res[0] || []);
+      var dqty = {};
+      (res[1] || []).forEach(function(d) {
+        if (d.dispatch_parts) {
+          d.dispatch_parts.forEach(function(dp) {
+            if (!dqty[dp.part_id]) dqty[dp.part_id] = 0;
+            dqty[dp.part_id] += dp.qty;
+          });
+        }
+      });
+      setDispatchedQty(dqty);
+    });
+  }, []);
 
   function addPart(part) {
     var existing = dispatchParts.find(function(dp){ return dp.part_id === part.id; });
     if (existing) return;
-    setDispatchParts(function(prev){ return prev.concat([{ part_id: part.id, mark: part.mark, category: part.category, qty: part.qty, weight: part.weight }]); });
+    var remaining = part.qty - (dispatchedQty[part.id] || 0);
+    if (remaining <= 0) return;
+    setDispatchParts(function(prev){ return prev.concat([{ part_id: part.id, mark: part.mark, category: part.category, qty: remaining, weight: part.weight }]); });
   }
 
   function removePart(partId) {
@@ -1834,9 +1851,13 @@ function DispatchCreateForm({ project, auth, form, set, saving, handleCreate, on
           </select>
         </div>
         {/* Available parts */}
-        <div style={{ maxHeight:150, overflowY:'auto', marginBottom:8 }}>
-          {filteredParts.slice(0, 30).map(function(p) {
+        <div style={{ maxHeight:300, overflowY:'auto', marginBottom:8 }}>
+          {filteredParts.filter(function(p) {
+            var remaining = p.qty - (dispatchedQty[p.id] || 0);
+            return remaining > 0;
+          }).map(function(p) {
             var alreadyAdded = dispatchParts.some(function(dp){ return dp.part_id === p.id; });
+            var remaining = p.qty - (dispatchedQty[p.id] || 0);
             return (
               <div key={p.id} onClick={function(){ if(!alreadyAdded) addPart(p); }} style={{
                 display:'flex', alignItems:'center', gap:6, padding:'3px 0', cursor: alreadyAdded ? 'default' : 'pointer',
@@ -1844,7 +1865,7 @@ function DispatchCreateForm({ project, auth, form, set, saving, handleCreate, on
               }}>
                 <span className="mono" style={{ fontSize:10, fontWeight:600, width:70 }}>{p.mark}</span>
                 <span className="badge" style={{ fontSize:7, background:'rgba(56,189,248,0.1)', color:'#38bdf8' }}>{CAT_LABELS_SHORT[p.category] || p.category}</span>
-                <span style={{ flex:1, fontSize:9, color:'var(--dim)' }}>x{p.qty} · {p.weight}kg</span>
+                <span style={{ flex:1, fontSize:9, color:'var(--dim)' }}>bal:{remaining}/{p.qty} · {p.weight}kg</span>
                 {!alreadyAdded && <span style={{ fontSize:10, color:'#34d399' }}>+ Add</span>}
               </div>
             );
@@ -1858,7 +1879,7 @@ function DispatchCreateForm({ project, auth, form, set, saving, handleCreate, on
               return (
                 <div key={dp.part_id} style={{ display:'flex', alignItems:'center', gap:6, padding:'3px 0', borderBottom:'1px solid rgba(42,42,58,0.15)' }}>
                   <span className="mono" style={{ fontSize:10, fontWeight:600, color:'#34d399', width:70 }}>{dp.mark}</span>
-                  <input type="number" min="1" value={dp.qty} onChange={function(e){ updateQty(dp.part_id, e.target.value); }}
+                  <input type="number" min="1" max={dp.qty} value={dp.qty} onChange={function(e){ var v=parseInt(e.target.value)||0; var maxQ = dp.qty; if(v>maxQ)v=maxQ; if(v<0)v=0; updateQty(dp.part_id, v); }}
                     style={{ width:45, fontSize:10, padding:'2px 4px', textAlign:'center' }} />
                   <span style={{ flex:1, fontSize:9, color:'var(--dim)' }}>{dp.weight}kg ea</span>
                   <button onClick={function(){ removePart(dp.part_id); }} style={{ background:'none', border:'none', color:'#dc2626', cursor:'pointer', fontSize:12 }}>✕</button>
