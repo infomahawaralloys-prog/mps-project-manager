@@ -914,6 +914,11 @@ function FabTab({ project, auth }) {
               <div className="mono" style={{ fontSize:9, fontWeight:700, color:CAT_COLORS[cat], marginTop:6 }}>{CAT_LABELS[cat]}</div>
               <div className="mono" style={{ fontSize:14, fontWeight:700, marginTop:2 }}>{total}</div>
               <div style={{ fontSize:8, color:'var(--dim)' }}>{cp.length} marks</div>
+              {(cat === 'builtup' || cat === 'coldform' || cat === 'hardware' || cat === 'anchor_bolts' || cat === 'deck') && cp.length > 0 && (
+                <div style={{ fontSize:7, color:'var(--muted)', marginTop:2 }}>
+                  {(cp.reduce(function(a,p){ return a + (p.weight * p.qty); }, 0) / 1000).toFixed(2)} MT
+                </div>
+              )}
               {(cat === 'roofing' || cat === 'cladding') && cp.length > 0 && (
                 <div style={{ fontSize:7, color:'var(--muted)', marginTop:2 }}>
                   {cp.reduce(function(a,p){ return a + (p.area || 0); }, 0).toFixed(0)} m\u00b2 \u00b7 {cp.reduce(function(a,p){ return a + (p.weight * p.qty); }, 0).toFixed(0)} kg
