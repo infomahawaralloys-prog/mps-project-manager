@@ -1824,7 +1824,7 @@ function ErectEntryModal({ part, onConfirm, onCancel }) {
   );
 }
 
-function DispatchCreateForm({ project, auth, form, set, saving, handleCreate, onCancel, dispatchParts, setDispatchParts }) {
+function DispatchCreateForm({ project, auth, form, set, saving, handleCreate, onCancel, dispatchParts, setDispatchParts, otherItems, setOtherItems }) {
   var [parts, setParts] = useState([]);
   var [search, setSearch] = useState('');
   var [catFilter, setCatFilter] = useState('all');
