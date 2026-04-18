@@ -657,9 +657,24 @@ function FabTab({ project, auth }) {
           }
           if (headerIdx < 0) return;
 
-          var rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { range: headerIdx, defval: '' });
+          // Build rows from aoa directly — xlsx-js range/header indices can diverge
+          // on sheets with blank leading rows (caused ROOF SHEET parse failure).
+          var headerRow = aoa[headerIdx].map(function(h) { return String(h || '').trim(); });
+          var rows = [];
+          for (var ri = headerIdx + 1; ri < aoa.length; ri++) {
+            if (!aoa[ri]) continue;
+            var obj = {};
+            var hasVal = false;
+            for (var ci = 0; ci < headerRow.length; ci++) {
+              var key = headerRow[ci] || ('__col_' + ci);
+              var val = aoa[ri][ci];
+              obj[key] = (val === undefined || val === null) ? '' : val;
+              if (obj[key] !== '') hasVal = true;
+            }
+            if (hasVal) rows.push(obj);
+          }
           if (!rows || rows.length === 0) return;
-          var headers = Object.keys(rows[0]);
+          var headers = headerRow.filter(function(h) { return h; });
 
           var markCol = findCol(headers, ['dwg', 'ref'], []);
           var descCol = findCol(headers, ['item', 'sketch'], ['weight','qty','nos']);
