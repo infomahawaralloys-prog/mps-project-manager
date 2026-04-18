@@ -936,7 +936,7 @@ function FabTab({ project, auth }) {
               )}
               {(cat === 'roofing' || cat === 'cladding') && cp.length > 0 && (
                 <div style={{ fontSize:7, color:'var(--muted)', marginTop:2 }}>
-                  {cp.reduce(function(a,p){ return a + (p.area || 0); }, 0).toFixed(0)} m\u00b2 \u00b7 {cp.reduce(function(a,p){ return a + (p.weight * p.qty); }, 0).toFixed(0)} kg
+                  {cp.reduce(function(a,p){ return a + (p.area || 0); }, 0).toFixed(0)} m² · {cp.reduce(function(a,p){ return a + (p.weight * p.qty); }, 0).toFixed(0)} kg
                 </div>
               )}
               {cat === 'accessories' && cp.length > 0 && (
