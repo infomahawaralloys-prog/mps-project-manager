@@ -1061,7 +1061,8 @@ function FabTab({ project, auth }) {
 function DispatchTab({ project, auth }) {
   var [dispatches, setDispatches] = useState([]);
   var [showCreate, setShowCreate] = useState(false);
-  var [form, setForm] = useState({ vehicle_no:'', challan_no:'', driver_name:'', driver_phone:'', net_weight:'', loading_by:'' });
+  var [form, setForm] = useState({ vehicle_no:'', challan_no:'', driver_name:'', driver_phone:'', net_weight:'', loading_by:'', weight_slip_url:'', challan_url:'' });
+  var [otherItems, setOtherItems] = useState([]);
   var [saving, setSaving] = useState(false);
   var [loading, setLoading] = useState(true);
   var [allParts, setAllParts] = useState([]);
@@ -1087,11 +1088,16 @@ function DispatchTab({ project, auth }) {
     setSaving(true);
     try {
       var partsList = dispatchParts.filter(function(dp){ return dp.qty > 0; }).map(function(dp){ return { part_id: dp.part_id, qty: dp.qty }; });
-      await db.createDispatch(Object.assign({}, form, { project_id: project.id, net_weight: parseFloat(form.net_weight) || 0, created_by: auth.user.id }), partsList);
-      var details = 'Dispatch ' + form.vehicle_no + ': ' + partsList.length + ' parts, ' + (form.net_weight || 0) + ' MT';
+      await db.createDispatch(Object.assign({}, form, {
+        project_id: project.id,
+        net_weight: parseFloat(form.net_weight) || 0,
+        created_by: auth.user.id,
+        other_items: otherItems.length > 0 ? JSON.stringify(otherItems) : '[]'
+      }), partsList);
+      var details = 'Dispatch ' + form.vehicle_no + ': ' + partsList.length + ' parts' + (otherItems.length > 0 ? ' + ' + otherItems.length + ' other items' : '') + ', ' + (form.net_weight || 0) + ' MT';
       await db.logActivity({ project_id: project.id, action_type: 'dispatch_create', details: details, user_name: auth.userName, user_role: auth.role });
-      setForm({ vehicle_no:'', challan_no:'', driver_name:'', driver_phone:'', net_weight:'', loading_by:'' });
-      setDispatchParts([]); setShowCreate(false); loadDispatches();
+      setForm({ vehicle_no:'', challan_no:'', driver_name:'', driver_phone:'', net_weight:'', loading_by:'', weight_slip_url:'', challan_url:'' });
+      setOtherItems([]); setDispatchParts([]); setShowCreate(false); loadDispatches();
     } catch (e) { alert(e.message); }
     setSaving(false);
   }
@@ -1119,27 +1125,76 @@ function DispatchTab({ project, auth }) {
 
       {canManage && <button onClick={function(){ setShowCreate(!showCreate); }} className="btn-outline" style={{ marginBottom:12, color:'#38bdf8', borderColor:'#38bdf8' }}>🚚 + New Dispatch</button>}
 
-      {showCreate && <DispatchCreateForm project={project} auth={auth} form={form} set={set} saving={saving} handleCreate={handleCreate} onCancel={function(){setShowCreate(false)}} dispatchParts={dispatchParts} setDispatchParts={setDispatchParts} />}
+      {showCreate && <DispatchCreateForm project={project} auth={auth} form={form} set={set} saving={saving} handleCreate={handleCreate} onCancel={function(){setShowCreate(false)}} dispatchParts={dispatchParts} setDispatchParts={setDispatchParts} otherItems={otherItems} setOtherItems={setOtherItems} />}
 
       {dispatches.map(function(d) {
+        var theoWeight = 0;
+        var dpList = d.dispatch_parts || [];
+        dpList.forEach(function(dp) { if(dp.parts) theoWeight += (dp.parts.weight || 0) * dp.qty; });
+        var otherList = [];
+        try { otherList = typeof d.other_items === 'string' ? JSON.parse(d.other_items) : (d.other_items || []); } catch(e) { otherList = []; }
         return (
-          <div key={d.id} className="glass-card" style={{ padding:14, marginBottom:8, borderLeft:'3px solid ' + statusColors[d.status] }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <details key={d.id} className="glass-card" style={{ padding:14, marginBottom:8, borderLeft:'3px solid ' + statusColors[d.status] }}>
+            <summary style={{ display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer', listStyle:'none' }}>
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                 <span style={{ fontSize:16 }}>{statusIcons[d.status]}</span>
                 <span className="mono" style={{ fontWeight:700, fontSize:14 }}>{d.vehicle_no}</span>
+                <span style={{ fontSize:10, color:'var(--dim)' }}>{new Date(d.created_at).toLocaleDateString('en-IN')}</span>
               </div>
-              <span className="badge" style={{ background:statusColors[d.status]+'22', color:statusColors[d.status] }}>{d.status}</span>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <span className="mono" style={{ fontSize:10, color:'var(--muted)' }}>{dpList.length} parts · {(theoWeight/1000).toFixed(2)} MT</span>
+                <span className="badge" style={{ background:statusColors[d.status]+'22', color:statusColors[d.status] }}>{d.status}</span>
+              </div>
+            </summary>
+            <div style={{ marginTop:10, paddingTop:10, borderTop:'1px solid rgba(42,42,58,0.3)' }}>
+              <div style={{ fontSize:11, color:'var(--dim)', marginBottom:8 }}>
+                Challan: {d.challan_no || '—'} · Driver: {d.driver_name || '—'} · Phone: {d.driver_phone || '—'} · Net Weight: {d.net_weight || 0} MT · Loading: {d.loading_by || '—'}
+              </div>
+              {(d.weight_slip_url || d.challan_url) && (
+                <div style={{ display:'flex', gap:12, marginBottom:8 }}>
+                  {d.weight_slip_url && <a href={d.weight_slip_url} target="_blank" rel="noopener" style={{ fontSize:10, color:'#38bdf8', textDecoration:'underline' }}>Weight Slip Photo</a>}
+                  {d.challan_url && <a href={d.challan_url} target="_blank" rel="noopener" style={{ fontSize:10, color:'#38bdf8', textDecoration:'underline' }}>Challan Photo</a>}
+                </div>
+              )}
+              {dpList.length > 0 && (
+                <div style={{ marginBottom:8 }}>
+                  <span className="mono" style={{ fontSize:9, color:'var(--dim)', letterSpacing:1 }}>PARTS ({dpList.length})</span>
+                  <table className="data-table" style={{ marginTop:4 }}>
+                    <thead><tr><th>Mark</th><th>Category</th><th>Qty</th><th>Weight</th></tr></thead>
+                    <tbody>
+                      {dpList.map(function(dp, i) {
+                        var pInfo = dp.parts || {};
+                        return (
+                          <tr key={i}>
+                            <td className="mono" style={{ fontWeight:600, fontSize:11 }}>{pInfo.mark || '—'}</td>
+                            <td style={{ fontSize:10, color:'var(--muted)' }}>{pInfo.category || '—'}</td>
+                            <td className="mono" style={{ fontSize:11 }}>{dp.qty}</td>
+                            <td className="mono" style={{ fontSize:10, color:'var(--dim)' }}>{((pInfo.weight || 0) * dp.qty).toFixed(1)} kg</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  <div style={{ textAlign:'right', fontSize:10, color:'var(--muted)', marginTop:4 }}>
+                    Theoretical: {(theoWeight/1000).toFixed(2)} MT · Net: {d.net_weight || 0} MT
+                  </div>
+                </div>
+              )}
+              {otherList.length > 0 && (
+                <div style={{ marginBottom:8 }}>
+                  <span className="mono" style={{ fontSize:9, color:'var(--dim)', letterSpacing:1 }}>OTHER ITEMS ({otherList.length})</span>
+                  {otherList.map(function(item, i) {
+                    return <div key={i} style={{ fontSize:11, color:'var(--text)', padding:'2px 0' }}>{item.name} — {item.qty} {item.unit}</div>;
+                  })}
+                </div>
+              )}
+              {canManage && d.status !== 'Unloaded' && (
+                <button onClick={function(){ advanceStatus(d); }} className="btn-outline" style={{ fontSize:10, color:'#34d399', borderColor:'#34d399' }}>
+                  Advance → {DISPATCH_STATUSES[DISPATCH_STATUSES.indexOf(d.status) + 1]}
+                </button>
+              )}
             </div>
-            <div style={{ fontSize:11, color:'var(--dim)', marginTop:4, paddingLeft:28 }}>
-              Challan: {d.challan_no || '—'} · Driver: {d.driver_name || '—'} · {d.net_weight || 0} MT
-            </div>
-            {canManage && d.status !== 'Unloaded' && (
-              <button onClick={function(){ advanceStatus(d); }} className="btn-outline" style={{ marginTop:8, marginLeft:28, fontSize:10, color:'#34d399', borderColor:'#34d399' }}>
-                → {DISPATCH_STATUSES[DISPATCH_STATUSES.indexOf(d.status) + 1]}
-              </button>
-            )}
-          </div>
+          </details>
         );
       })}
       {dispatches.length === 0 && !showCreate && (
@@ -1888,6 +1943,42 @@ function DispatchCreateForm({ project, auth, form, set, saving, handleCreate, on
             })}
           </div>
         )}
+      </div>
+
+      {/* Photo URLs */}
+      <div style={{ marginTop:12 }}>
+        <span className="mono" style={{ fontSize:9, color:'var(--dim)', letterSpacing:1 }}>PHOTO LINKS</span>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:4 }}>
+          <div><label className="mono" style={{fontSize:8,color:'var(--muted)',textTransform:'uppercase'}}>Weight Slip URL</label><input value={form.weight_slip_url} onChange={function(e){set('weight_slip_url',e.target.value)}} placeholder="Paste link to weight slip photo" /></div>
+          <div><label className="mono" style={{fontSize:8,color:'var(--muted)',textTransform:'uppercase'}}>Challan Photo URL</label><input value={form.challan_url} onChange={function(e){set('challan_url',e.target.value)}} placeholder="Paste link to challan photo" /></div>
+        </div>
+      </div>
+
+      {/* Other Items */}
+      <div style={{ marginTop:12 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+          <span className="mono" style={{ fontSize:9, color:'var(--dim)', letterSpacing:1 }}>OTHER ITEMS</span>
+          <button onClick={function(){ setOtherItems(function(prev){ return prev.concat([{ name:'', qty:'', unit:'pcs' }]); }); }} className="btn-outline" style={{ fontSize:9, padding:'3px 8px' }}>+ Add Item</button>
+        </div>
+        {(otherItems || []).map(function(item, i) {
+          return (
+            <div key={i} style={{ display:'flex', gap:6, marginBottom:4, alignItems:'center' }}>
+              <input value={item.name} onChange={function(e){ setOtherItems(function(prev){ var n=prev.slice(); n[i]=Object.assign({},n[i],{name:e.target.value}); return n; }); }} placeholder="Item name" style={{ flex:2, fontSize:10, padding:'4px 6px' }} />
+              <input type="number" value={item.qty} onChange={function(e){ setOtherItems(function(prev){ var n=prev.slice(); n[i]=Object.assign({},n[i],{qty:e.target.value}); return n; }); }} placeholder="Qty" style={{ width:50, fontSize:10, padding:'4px 6px', textAlign:'center' }} />
+              <select value={item.unit} onChange={function(e){ setOtherItems(function(prev){ var n=prev.slice(); n[i]=Object.assign({},n[i],{unit:e.target.value}); return n; }); }} style={{ width:60, fontSize:10, padding:'4px' }}>
+                <option value="pcs">pcs</option>
+                <option value="kg">kg</option>
+                <option value="rolls">rolls</option>
+                <option value="ltrs">ltrs</option>
+                <option value="boxes">boxes</option>
+                <option value="sets">sets</option>
+                <option value="nos">nos</option>
+                <option value="rmt">rmt</option>
+              </select>
+              <button onClick={function(){ setOtherItems(function(prev){ return prev.filter(function(_,j){return j!==i;}); }); }} style={{ background:'none', border:'none', color:'#dc2626', cursor:'pointer', fontSize:12 }}>x</button>
+            </div>
+          );
+        })}
       </div>
 
       <div style={{display:'flex',gap:8,marginTop:12}}>
