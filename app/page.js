@@ -518,7 +518,7 @@ function FabTab({ project, auth }) {
   }
 
   function findHeaderRow(XLSX, ws) {
-    var aoa = XLSX.utils.sheet_to_json(ws);
+    var aoa = XLSX.utils.sheet_to_json(ws, {header:1});
     var markKw = ['mark', 'assembly', 'standard', 'item', 'part'];
     var qtyKw = ['qty', 'quantity', 'nos', 'pcs'];
     for (var i = 0; i < Math.min(25, aoa.length); i++) {
