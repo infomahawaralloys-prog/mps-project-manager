@@ -645,7 +645,7 @@ function FabTab({ project, auth }) {
           else if (su.indexOf('FLASH') >= 0 || su.indexOf('TRIM') >= 0 || su.indexOf('ACCESS') >= 0) defaultCat = 'accessories';
           if (!defaultCat) return;
 
-          var aoa = XLSX.utils.sheet_to_aoa(wb.Sheets[sn]);
+          var aoa = XLSX.utils.sheet_to_json(wb.Sheets[sn], {header:1});
           var headerIdx = -1;
           for (var i = 0; i < Math.min(25, aoa.length); i++) {
             if (!aoa[i]) continue;
