@@ -1,44 +1,20 @@
 'use client';
+import { LOGO_SRC } from '../../lib/logo';
 
-export default function Logo({ compact = false }) {
+export default function Logo({ compact = false, size = 28 }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <div
+      <img
+        src={LOGO_SRC}
+        alt="Mahawar Prefab Solutions"
         style={{
-          width: 28,
-          height: 28,
-          borderRadius: 7,
-          background: 'var(--ink-900)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          position: 'relative',
+          width: size,
+          height: size,
+          objectFit: 'contain',
           flexShrink: 0,
+          borderRadius: 6,
         }}
-      >
-        <div
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontWeight: 600,
-            fontSize: 13,
-            color: '#fff',
-            letterSpacing: '-0.02em',
-          }}
-        >
-          M
-        </div>
-        <div
-          style={{
-            position: 'absolute',
-            top: 3,
-            right: 3,
-            width: 5,
-            height: 5,
-            borderRadius: '50%',
-            background: 'var(--accent)',
-          }}
-        />
-      </div>
+      />
       {!compact && (
         <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
           <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em' }}>

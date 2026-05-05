@@ -311,7 +311,11 @@ button, input, select, textarea {
 .animate-fade    { animation: fade 0.3s ease-out; }
 .animate-pulse   { animation: pulse 2s ease-in-out infinite; }
 .animate-shimmer { animation: shimmer 2s ease-in-out infinite; }
-.animate-glow    { /* no-op in light theme */ }
+.animate-glow    { animation: glow 3s ease-in-out infinite; }
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(220, 38, 38, 0.15); }
+  50%      { box-shadow: 0 0 35px rgba(220, 38, 38, 0.25); }
+}
 
 /* ============================================================
    LEGACY COMPATIBILITY SHIMS
