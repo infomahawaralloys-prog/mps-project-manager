@@ -10,8 +10,8 @@ import ProjectHeader from '../components/shell/ProjectHeader';
 import Tabs from '../components/shell/Tabs';
 import Logo from '../components/shell/Logo';
 import InfoTab from '../components/tabs/InfoTab';
+import FabTab from '../components/tabs/FabTab';
 import {
-  FabTab,
   DispatchTab,
   ErectionTab,
   CreateProjectForm,
@@ -127,7 +127,7 @@ export default function Page() {
           justifyContent: 'center',
         }}
       >
-        <div className="t-caption">Loadingâ€¦</div>
+        <div className="t-caption">Loading…</div>
       </div>
     );
   }
@@ -177,9 +177,7 @@ export default function Page() {
                 />
               )}
               {tab === 'fab' && (
-                <div className="main-content animate-fade">
-                  <FabTab project={selectedProject} auth={auth} />
-                </div>
+                <FabTab project={selectedProject} auth={auth} />
               )}
               {tab === 'dispatch' && (
                 <div className="main-content animate-fade">
@@ -228,7 +226,7 @@ function EmptyState({ loading, isPM, onCreate }) {
           color: 'var(--ink-500)',
         }}
       >
-        <div className="t-caption">Loading projectsâ€¦</div>
+        <div className="t-caption">Loading projects…</div>
       </div>
     );
   }
@@ -293,7 +291,7 @@ function EmptyState({ loading, isPM, onCreate }) {
 }
 
 // -----------------------------------------------------------------
-// Create-project modal â€” wraps the legacy CreateProjectForm in a
+// Create-project modal — wraps the legacy CreateProjectForm in a
 // portal-rendered overlay for now.
 // -----------------------------------------------------------------
 function CreateModal({ auth, onCreated, onCancel }) {
