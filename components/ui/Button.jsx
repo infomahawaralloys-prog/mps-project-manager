@@ -31,11 +31,12 @@ export default function Button({
     .filter(Boolean)
     .join(' ');
   const iconSize = size === 'sm' ? 13 : size === 'lg' ? 16 : 14;
-  return (
-    <button className={cls} {...rest}>
-      {IconComp && <IconComp size={iconSize} />}
-      {children}
-      {iconRight && (() => { const R = iconRight; return <R size={iconSize} />; })()}
-    </button>
-  );
+const RightIcon = iconRight;
+return (
+  <button className={cls} {...rest}>
+    {IconComp && <IconComp size={iconSize} />}
+    {children}
+    {RightIcon && <RightIcon size={iconSize} />}
+  </button>
+);
 }
