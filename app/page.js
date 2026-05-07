@@ -11,11 +11,9 @@ import Tabs from '../components/shell/Tabs';
 import Logo from '../components/shell/Logo';
 import InfoTab from '../components/tabs/InfoTab';
 import FabTab from '../components/tabs/FabTab';
-import {
-  DispatchTab,
-  ErectionTab,
-  CreateProjectForm,
-} from '../components/tabs/legacy-tabs';
+import DispatchTab from '../components/tabs/DispatchTab';
+import ErectionTab from '../components/tabs/ErectionTab';
+import { CreateProjectForm } from '../components/tabs/legacy-tabs';
 import { Button } from '../components/ui';
 import { Plus, X } from '../components/icons';
 
@@ -180,14 +178,10 @@ export default function Page() {
                 <FabTab project={selectedProject} auth={auth} />
               )}
               {tab === 'dispatch' && (
-                <div className="main-content animate-fade">
-                  <DispatchTab project={selectedProject} auth={auth} />
-                </div>
+                <DispatchTab project={selectedProject} auth={auth} />
               )}
               {tab === 'erection' && (
-                <div className="main-content animate-fade">
-                  <ErectionTab project={selectedProject} auth={auth} />
-                </div>
+                <ErectionTab project={selectedProject} auth={auth} />
               )}
             </div>
           </>
