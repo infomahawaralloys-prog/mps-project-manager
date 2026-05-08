@@ -183,6 +183,52 @@ function PipelineRow({ row, canEdit, isLast, onEdit }) {
         {statusLabel}
       </div>
 
+      {/* Revision badge */}
+      <div
+        className="mono"
+        style={{
+          fontSize: 10.5,
+          fontWeight: 600,
+          color: 'var(--ink-500)',
+          background: 'var(--surface-2)',
+          padding: '3px 7px',
+          borderRadius: 4,
+          flexShrink: 0,
+          letterSpacing: '0.02em',
+        }}
+        title={`Revision ${row.revision || 'Rev 0'}`}
+      >
+        {row.revision || 'Rev 0'}
+      </div>
+
+      {/* Link chip (only when drawing_url is set) */}
+      {row.drawing_url && (
+        <a
+          href={row.drawing_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            padding: '4px 8px',
+            borderRadius: 999,
+            background: 'color-mix(in oklab, var(--accent) 10%, white)',
+            color: 'var(--accent)',
+            fontSize: 11,
+            fontWeight: 600,
+            textDecoration: 'none',
+            border: '1px solid color-mix(in oklab, var(--accent) 25%, white)',
+            flexShrink: 0,
+          }}
+          title="Open drawing"
+        >
+          <Icons.ExternalLink size={11} />
+          Open
+        </a>
+      )}
+
       {/* Progress bar (if in progress) */}
       <div style={{ flex: 1, minWidth: 0 }}>
         {row.status === 'in_progress' && (

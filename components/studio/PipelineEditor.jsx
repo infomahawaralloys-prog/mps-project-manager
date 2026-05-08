@@ -23,6 +23,8 @@ export default function PipelineEditor({
   const [percent, setPercent] = useState(row?.percent ?? 0);
   const [dueDate, setDueDate] = useState(row?.due_date || '');
   const [note, setNote] = useState(row?.note || '');
+  const [drawingUrl, setDrawingUrl] = useState(row?.drawing_url || '');
+  const [revision, setRevision] = useState(row?.revision || 'Rev 0');
   const [saving, setSaving] = useState(false);
 
   const catLabel = PIPELINE_CAT_LABELS[category];
@@ -38,6 +40,8 @@ export default function PipelineEditor({
         percent: status === 'in_progress' ? percent : status === 'done' ? 100 : 0,
         due_date: dueDate || null,
         note: note || null,
+        drawing_url: drawingUrl.trim() || null,
+        revision: revision.trim() || 'Rev 0',
         updated_by: auth.user?.id,
       });
 
@@ -46,6 +50,8 @@ export default function PipelineEditor({
       const statusChanged = oldStatus !== status;
       const noteChanged = (row?.note || '') !== (note || '');
       const dateChanged = (row?.due_date || '') !== (dueDate || '');
+      const urlChanged = (row?.drawing_url || '') !== (drawingUrl || '');
+      const revChanged = (row?.revision || 'Rev 0') !== (revision || 'Rev 0');
       let parts = [];
       if (statusChanged)
         parts.push(
@@ -55,6 +61,10 @@ export default function PipelineEditor({
         parts.push(`progress: ${percent}%`);
       if (dateChanged)
         parts.push(dueDate ? `due: ${dueDate}` : 'due cleared');
+      if (revChanged)
+        parts.push(`revision: ${revision}`);
+      if (urlChanged)
+        parts.push(drawingUrl ? 'drawing link updated' : 'drawing link cleared');
       if (noteChanged && note) parts.push(`note: "${note}"`);
       if (noteChanged && !note) parts.push('note cleared');
 
@@ -227,6 +237,44 @@ export default function PipelineEditor({
             />
             <div className="t-caption" style={{ marginTop: 4 }}>
               When you expect these drawings to be ready / received
+            </div>
+          </div>
+
+          {/* Drawing link + revision */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 100px',
+              gap: 10,
+            }}
+          >
+            <div>
+              <label
+                className="t-overline"
+                style={{ display: 'block', marginBottom: 6 }}
+              >
+                Drawing link
+              </label>
+              <input
+                type="url"
+                value={drawingUrl}
+                onChange={(e) => setDrawingUrl(e.target.value)}
+                placeholder="https://drive.google.com/…"
+              />
+            </div>
+            <div>
+              <label
+                className="t-overline"
+                style={{ display: 'block', marginBottom: 6 }}
+              >
+                Revision
+              </label>
+              <input
+                type="text"
+                value={revision}
+                onChange={(e) => setRevision(e.target.value)}
+                placeholder="Rev 0"
+              />
             </div>
           </div>
 
