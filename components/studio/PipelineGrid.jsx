@@ -146,7 +146,7 @@ export default function PipelineGrid({
         </div>
       ) : (
         <div
-          className="card"
+          className="card scroll-x-mobile"
           style={{ overflow: 'auto', padding: 0 }}
         >
           <table

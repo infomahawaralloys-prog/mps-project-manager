@@ -117,12 +117,14 @@ export default function ErectionTab({ project, auth }) {
           flexWrap: 'wrap',
         }}
       >
-        <Segmented
-          value={subTab}
-          onChange={setSubTab}
-          options={visibleSubTabs}
-          size="md"
-        />
+        <div className="tabs-strip" style={{ flexShrink: 0 }}>
+          <Segmented
+            value={subTab}
+            onChange={setSubTab}
+            options={visibleSubTabs}
+            size="md"
+          />
+        </div>
         <div style={{ flex: 1 }} />
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {openSnags > 0 && (

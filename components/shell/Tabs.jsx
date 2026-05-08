@@ -24,6 +24,7 @@ export default function Tabs({ active, onChange, auth, search, onSearchChange })
 
   return (
     <div
+      className="tabs-strip"
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -55,6 +56,8 @@ export default function Tabs({ active, onChange, auth, search, onSearchChange })
               fontWeight: on ? 600 : 500,
               position: 'relative',
               fontFamily: 'inherit',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
           >
             <t.Icon size={15} />
@@ -77,6 +80,7 @@ export default function Tabs({ active, onChange, auth, search, onSearchChange })
       })}
       <div style={{ flex: 1 }} />
       <div
+        className="hide-on-mobile"
         style={{
           display: 'flex',
           alignItems: 'center',

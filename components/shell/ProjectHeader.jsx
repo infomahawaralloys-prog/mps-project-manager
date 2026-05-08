@@ -86,6 +86,7 @@ export default function ProjectHeader({ project, onBackToList }) {
 
   return (
     <div
+      className="header-with-hamburger"
       style={{
         padding: '18px 28px 14px',
         borderBottom: '1px solid var(--line)',
@@ -128,6 +129,7 @@ export default function ProjectHeader({ project, onBackToList }) {
       </div>
 
       <div
+        className="project-header-row"
         style={{
           display: 'flex',
           alignItems: 'flex-start',
@@ -195,6 +197,7 @@ export default function ProjectHeader({ project, onBackToList }) {
 
         {/* Right cluster: target handover · on-track ring */}
         <div
+          className="project-header-stats"
           style={{
             display: 'flex',
             alignItems: 'center',

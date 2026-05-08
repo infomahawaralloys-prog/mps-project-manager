@@ -16,7 +16,7 @@ import ErectionTab from '../components/tabs/ErectionTab';
 import StudioView from '../components/studio/StudioView';
 import { CreateProjectForm } from '../components/tabs/legacy-tabs';
 import { Button } from '../components/ui';
-import { Plus, X } from '../components/icons';
+import { Plus, X, Menu } from '../components/icons';
 
 // localStorage keys
 const LS_TAB = 'mps_tab';
@@ -32,6 +32,7 @@ export default function Page() {
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Auth gate
   useEffect(() => {
@@ -134,15 +135,41 @@ export default function Page() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
-      <Sidebar
-        auth={auth}
-        projects={projects}
-        selectedId={selectedId}
-        onSelect={handleSelectProject}
-        onCreate={() => setShowCreate(true)}
-        onStudioClick={() => setSelectedId(null)}
-        studioActive={!selectedId}
-      />
+      {/* Mobile hamburger — fixed top-left, only visible on mobile */}
+      <button
+        type="button"
+        className="mobile-hamburger"
+        onClick={() => setDrawerOpen(true)}
+        aria-label="Open navigation"
+      >
+        <Menu size={18} />
+      </button>
+
+      {/* Sidebar — desktop = flex child, mobile = slide-out drawer */}
+      <div className={`sidebar-wrapper${drawerOpen ? ' open' : ''}`}>
+        <div
+          className="sidebar-backdrop"
+          onClick={() => setDrawerOpen(false)}
+        />
+        <Sidebar
+          auth={auth}
+          projects={projects}
+          selectedId={selectedId}
+          onSelect={(p) => {
+            handleSelectProject(p);
+            setDrawerOpen(false);
+          }}
+          onCreate={() => {
+            setShowCreate(true);
+            setDrawerOpen(false);
+          }}
+          onStudioClick={() => {
+            setSelectedId(null);
+            setDrawerOpen(false);
+          }}
+          studioActive={!selectedId}
+        />
+      </div>
 
       <main
         style={{

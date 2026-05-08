@@ -194,12 +194,9 @@ export default function InfoTab({ project, auth, onUpdated }) {
 
   return (
     <div
-      className="animate-fade"
+      className="animate-fade grid-stack-mobile grid-2col-rail"
       style={{
         padding: '20px 28px 40px',
-        display: 'grid',
-        gridTemplateColumns: '1fr 320px',
-        gap: 20,
       }}
     >
       {/* ==== LEFT COLUMN ==== */}
@@ -266,11 +263,8 @@ export default function InfoTab({ project, auth, onUpdated }) {
             </div>
           ) : (
             <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(4, 1fr)',
-                gap: 20,
-              }}
+              className="grid-4col-stats"
+              style={{ gap: 20 }}
             >
               <Stat label="Project code" value={project.project_no || '—'} />
               {project.job_no && <Stat label="Job no" value={project.job_no} />}

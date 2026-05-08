@@ -281,7 +281,7 @@ export default function MarksTable({
           {parts.length === 0 ? 'No parts yet.' : 'No marks match.'}
         </div>
       ) : (
-        <table className="t-table">
+        <table className="t-table marks-table-mobile">
           <thead>
             <tr>
               <th style={{ width: 40 }} />
@@ -319,7 +319,7 @@ export default function MarksTable({
                       <Icons.Lock size={12} color="var(--ink-400)" />
                     ) : null}
                   </td>
-                  <td>
+                  <td data-label="Mark">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       {hex && (
                         <span
@@ -349,16 +349,16 @@ export default function MarksTable({
                       </span>
                     </div>
                   </td>
-                  <td style={{ fontSize: 12, color: 'var(--ink-500)' }}>
+                  <td data-label="Description" style={{ fontSize: 12, color: 'var(--ink-500)' }}>
                     {p.description || '—'}
                   </td>
-                  <td style={{ fontSize: 12, color: 'var(--ink-500)' }}>
+                  <td data-label="Category" style={{ fontSize: 12, color: 'var(--ink-500)' }}>
                     {p.category}
                   </td>
-                  <td className="mono tnum" style={{ textAlign: 'right' }}>
+                  <td data-label="Wt (kg)" className="mono tnum" style={{ textAlign: 'right' }}>
                     {p.weight || 0}
                   </td>
-                  <td>
+                  <td data-label="Status">
                     {erected ? (
                       <span className="badge-done">
                         Erected · {erectedById[p.id]?.erection_date || ''}

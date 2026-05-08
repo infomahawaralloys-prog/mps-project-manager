@@ -180,10 +180,9 @@ export default function NewDispatchForm({
 
       {/* Top fields grid */}
       <div
+        className="grid-stack-mobile"
         style={{
-          display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 12,
           marginBottom: 16,
         }}
       >

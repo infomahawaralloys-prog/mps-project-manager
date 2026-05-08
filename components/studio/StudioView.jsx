@@ -51,6 +51,7 @@ export default function StudioView({ auth, projects, onProjectClick }) {
     >
       {/* Studio header */}
       <div
+        className="header-with-hamburger"
         style={{
           padding: '20px 28px 16px',
           borderBottom: '1px solid var(--line)',
@@ -59,6 +60,7 @@ export default function StudioView({ auth, projects, onProjectClick }) {
       >
         <div className="t-overline" style={{ marginBottom: 4 }}>Portfolio</div>
         <div
+          className="studio-header-stats"
           style={{
             display: 'flex',
             alignItems: 'baseline',
@@ -116,12 +118,14 @@ export default function StudioView({ auth, projects, onProjectClick }) {
           background: 'var(--surface-0)',
         }}
       >
-        <Segmented
-          value={subTab}
-          onChange={setSubTab}
-          options={SUB_TABS}
-          size="md"
-        />
+        <div className="tabs-strip">
+          <Segmented
+            value={subTab}
+            onChange={setSubTab}
+            options={SUB_TABS}
+            size="md"
+          />
+        </div>
       </div>
 
       {/* Body */}

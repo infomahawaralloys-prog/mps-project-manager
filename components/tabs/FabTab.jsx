@@ -475,9 +475,8 @@ function ABForm({ form, setForm, onAdd, onCancel }) {
 function CategoryGrid({ catSummary, selectedCat, onSelect }) {
   return (
     <div
+      className="grid-4col-stats"
       style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(4, 1fr)',
         gap: 12,
         marginBottom: 18,
       }}

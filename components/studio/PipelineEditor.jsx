@@ -87,6 +87,7 @@ export default function PipelineEditor({
   return (
     <div
       onClick={onCancel}
+      className="modal-mobile-full"
       style={{
         position: 'fixed',
         inset: 0,

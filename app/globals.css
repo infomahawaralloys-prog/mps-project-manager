@@ -1,5 +1,5 @@
 /* ============================================================
-   MPS Project Manager â€” Design System
+   MPS Project Manager — Design System
    Light, warm-stone, industrial. Light-only.
    Pass 1: foundation + Info tab.
    Legacy class names are re-skinned at the bottom so the
@@ -11,7 +11,7 @@
    1. Tokens
    ------------------------------------------------------------ */
 :root {
-  /* Surfaces â€” warm-stone, NOT cool grey */
+  /* Surfaces — warm-stone, NOT cool grey */
   --surface-0: #FAFAF7;   /* page background */
   --surface-1: #FFFFFF;   /* cards */
   --surface-2: #F4F3EE;   /* row hover, subtle fill */
@@ -26,13 +26,13 @@
   --line:    #E5E3DB;
   --line-strong: #D4D1C6;
 
-  /* Accent â€” single steel-blue, readable in sunlight */
+  /* Accent — single steel-blue, readable in sunlight */
   --accent:        #1E5FAA;
   --accent-hover:  #174C8A;
   --accent-tint:   #E8EFF8;
   --accent-tint-2: #D3E0F1;
 
-  /* Status â€” one tint per state, never bright */
+  /* Status — one tint per state, never bright */
   --status-done:          #117A4A;
   --status-done-tint:     #E3F1E9;
   --status-progress:      #B6711A;
@@ -42,7 +42,7 @@
   --status-alert:         #B33030;
   --status-alert-tint:    #FCE6E4;
 
-  /* Category accents â€” used ONLY on category cards & icon chips */
+  /* Category accents — used ONLY on category cards & icon chips */
   --cat-anchor:       #5B4FBF;
   --cat-builtup:      #1E5FAA;
   --cat-coldform:     #0E7B7B;
@@ -55,22 +55,22 @@
   /* Radii */
   --r-xs: 4px; --r-sm: 6px; --r-md: 8px; --r-lg: 12px; --r-xl: 16px;
 
-  /* Shadows â€” paper-like */
+  /* Shadows — paper-like */
   --shadow-xs: 0 1px 2px rgba(17,17,16,.04);
   --shadow-sm: 0 1px 2px rgba(17,17,16,.06), 0 1px 3px rgba(17,17,16,.03);
   --shadow-md: 0 2px 4px rgba(17,17,16,.06), 0 4px 12px rgba(17,17,16,.04);
   --shadow-lg: 0 4px 12px rgba(17,17,16,.08), 0 12px 32px rgba(17,17,16,.06);
 
-  /* Type â€” populated by next/font in layout.js */
+  /* Type — populated by next/font in layout.js */
   --font-sans: var(--font-inter-tight, "Inter Tight"), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono, "JetBrains Mono"), ui-monospace, "SF Mono", Menlo, monospace;
 
-  /* Spacing â€” 4px base */
+  /* Spacing — 4px base */
   --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px;
   --s-5: 20px; --s-6: 24px; --s-8: 32px; --s-10: 40px;
   --s-12: 48px; --s-16: 64px;
 
-  /* ---- Legacy alias tokens â€” keep old page.js working ---- */
+  /* ---- Legacy alias tokens — keep old page.js working ---- */
   --bg:      var(--surface-0);
   --surface: var(--surface-1);
   --card:    var(--surface-1);
@@ -311,11 +311,7 @@ button, input, select, textarea {
 .animate-fade    { animation: fade 0.3s ease-out; }
 .animate-pulse   { animation: pulse 2s ease-in-out infinite; }
 .animate-shimmer { animation: shimmer 2s ease-in-out infinite; }
-.animate-glow    { animation: glow 3s ease-in-out infinite; }
-@keyframes glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(220, 38, 38, 0.15); }
-  50%      { box-shadow: 0 0 35px rgba(220, 38, 38, 0.25); }
-}
+.animate-glow    { /* no-op in light theme */ }
 
 /* ============================================================
    LEGACY COMPATIBILITY SHIMS
@@ -325,7 +321,7 @@ button, input, select, textarea {
    deleted in pass 4.
    ============================================================ */
 
-/* Legacy card â†’ light card */
+/* Legacy card → light card */
 .glass-card {
   background: var(--surface-1);
   border: 1px solid var(--line);
@@ -335,7 +331,7 @@ button, input, select, textarea {
 }
 .glass-card:hover { border-color: var(--line-strong); }
 
-/* Legacy buttons â†’ new look */
+/* Legacy buttons → new look */
 .btn-red {
   background: var(--accent);
   color: #fff;
@@ -390,7 +386,7 @@ button, input, select, textarea {
   color: var(--ink-700);
 }
 
-/* Legacy form inputs â†’ light input */
+/* Legacy form inputs → light input */
 input, select, textarea {
   background: var(--surface-1);
   border: 1px solid var(--line-strong);
@@ -410,7 +406,7 @@ input:focus, select:focus, textarea:focus {
 input::placeholder { color: var(--ink-300); font-size: 13px; }
 select { cursor: pointer; appearance: auto; }
 
-/* Legacy data-table â†’ similar to t-table */
+/* Legacy data-table → similar to t-table */
 .data-table {
   width: 100%;
   border-collapse: separate;
@@ -507,7 +503,7 @@ select { cursor: pointer; appearance: auto; }
 .flex-wrap-gap { display: flex; flex-wrap: wrap; gap: 8px; }
 .main-content { max-width: 1280px; margin: 0 auto; padding: 16px; }
 
-/* grid-bg used on legacy body â€” neutralise it (light theme = no pattern) */
+/* grid-bg used on legacy body — neutralise it (light theme = no pattern) */
 .grid-bg { background: var(--surface-0); }
 
 /* Legacy mobile tightening */
@@ -517,4 +513,264 @@ select { cursor: pointer; appearance: auto; }
   .data-table { font-size: 12px; }
   .data-table th { padding: 8px 8px; font-size: 10px; }
   .data-table td { padding: 8px 8px; font-size: 12px; }
+}
+
+/* ============================================================
+   MOBILE — Pass 5 responsive layouts
+   Breakpoint: 767px (below = phone/small-tablet portrait)
+   ============================================================ */
+
+/* Mobile hamburger button — fixed top-left, only visible on mobile.
+   The Sidebar drawer is controlled via the .open class on .sidebar-wrapper. */
+.mobile-hamburger {
+  display: none;
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 60;
+  width: 40px;
+  height: 40px;
+  background: var(--surface-1);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  color: var(--ink-700);
+  font-family: inherit;
+}
+.mobile-hamburger:active { transform: scale(0.96); }
+
+/* Sidebar wrapper — desktop = normal flex child, mobile = slide-out drawer */
+.sidebar-wrapper {
+  flex-shrink: 0;
+}
+.sidebar-wrapper > .sidebar-backdrop { display: none; }
+
+/* ----- 2-column layouts that should stack on mobile ----- */
+.grid-stack-mobile {
+  display: grid;
+  gap: 18px;
+}
+.grid-2col-rail {
+  grid-template-columns: minmax(0, 1fr) 320px;
+}
+.grid-2col-rail-wide {
+  grid-template-columns: minmax(0, 1fr) 360px;
+}
+
+/* ----- 4-column stat grid ----- */
+.grid-4col-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+/* ----- 5-card filter row ----- */
+.grid-5col-cards {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+
+/* ----- horizontal scroll wrappers (used for wide tables on phone) ----- */
+.scroll-x-mobile { overflow-x: visible; }
+
+/* ----- visibility toggles ----- */
+.show-on-mobile { display: none; }
+.hide-on-mobile { display: revert; }
+
+/* ============================================================
+   MOBILE BREAKPOINT
+   ============================================================ */
+@media (max-width: 767px) {
+  /* Show hamburger */
+  .mobile-hamburger { display: inline-flex; }
+
+  /* Sidebar becomes a slide-out drawer */
+  .sidebar-wrapper {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    pointer-events: none;
+    display: flex;
+  }
+  .sidebar-wrapper > .sidebar-backdrop {
+    display: block;
+    position: absolute;
+    inset: 0;
+    background: rgba(17,17,16,0);
+    transition: background 200ms;
+    pointer-events: none;
+  }
+  .sidebar-wrapper.open { pointer-events: auto; }
+  .sidebar-wrapper.open > .sidebar-backdrop {
+    background: rgba(17,17,16,.45);
+    pointer-events: auto;
+  }
+  .sidebar-wrapper > aside {
+    position: relative;
+    z-index: 1;
+    transform: translateX(-100%);
+    transition: transform 220ms ease-out;
+    box-shadow: 0 0 24px rgba(0,0,0,.12);
+    width: min(78vw, 300px) !important;
+    height: 100vh !important;
+  }
+  .sidebar-wrapper.open > aside { transform: translateX(0); }
+
+  /* Header content needs space for the hamburger button */
+  .header-with-hamburger {
+    padding-left: 60px !important;
+  }
+
+  /* All multi-column layouts collapse to one */
+  .grid-stack-mobile {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  .grid-2col-rail,
+  .grid-2col-rail-wide {
+    grid-template-columns: 1fr !important;
+  }
+  .grid-4col-stats {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px;
+  }
+  .grid-5col-cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  /* Wide tables get horizontal scroll with momentum */
+  .scroll-x-mobile {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+  .scroll-x-mobile::-webkit-scrollbar { height: 4px; }
+  .scroll-x-mobile::-webkit-scrollbar-thumb {
+    background: var(--ink-300);
+    border-radius: 2px;
+  }
+
+  /* Visibility */
+  .show-on-mobile { display: revert !important; }
+  .hide-on-mobile { display: none !important; }
+
+  /* Touch target enforcement */
+  .btn { min-height: 36px; }
+  .btn-sm { min-height: 32px; }
+  .btn-lg { min-height: 44px; }
+  .btn-icon.btn-sm { min-width: 32px; }
+  .chip { min-height: 26px; padding: 0 10px; }
+
+  /* Tab strip horizontal scroll */
+  .tabs-strip {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .tabs-strip::-webkit-scrollbar { display: none; }
+
+  /* Studio header: stack stats below title */
+  .studio-header-stats { flex-wrap: wrap; gap: 10px !important; }
+
+  /* Modal — full-screen on phones */
+  .modal-mobile-full {
+    padding: 0 !important;
+  }
+  .modal-mobile-full > .card {
+    max-width: 100% !important;
+    width: 100% !important;
+    max-height: 100vh !important;
+    height: 100vh !important;
+    border-radius: 0 !important;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Pipeline editor body grows */
+  .modal-mobile-full > .card > div:nth-child(2) {
+    flex: 1;
+  }
+
+  /* Reduce padding on cards */
+  .card { border-radius: 6px; }
+
+  /* Project header stacks */
+  .project-header-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+  .project-header-stats {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  /* Marks table → render as cards on mobile */
+  .marks-table-mobile thead { display: none; }
+  .marks-table-mobile tr {
+    display: block;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    padding: 12px;
+    background: var(--surface-1);
+  }
+  .marks-table-mobile tbody { display: block; }
+  .marks-table-mobile td {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0 !important;
+    border: none !important;
+    align-items: center;
+    gap: 8px;
+  }
+  .marks-table-mobile td::before {
+    content: attr(data-label);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    color: var(--ink-500);
+    font-weight: 600;
+    letter-spacing: .04em;
+    flex-shrink: 0;
+  }
+  .marks-table-mobile td:first-child::before,
+  .marks-table-mobile td:last-child::before { content: none; }
+
+  /* Misc — reduce big fonts */
+  h1 { font-size: 22px !important; }
+  .t-h1 { font-size: 22px !important; }
+  .t-h2 { font-size: 18px !important; }
+
+  /* Reduce horizontal padding (28px → 14px) on key containers */
+  .header-with-hamburger {
+    padding-right: 14px !important;
+  }
+  /* Tab content padding override via descendant selector */
+  main > div > div[class*="animate-fade"] {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+  /* Tabs strip */
+  .tabs-strip {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+}
+
+/* ============================================================
+   TABLET — between phone and desktop
+   ============================================================ */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .grid-4col-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .grid-2col-rail-wide {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
 }

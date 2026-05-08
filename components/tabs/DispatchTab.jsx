@@ -119,10 +119,8 @@ export default function DispatchTab({ project, auth }) {
     <div className="animate-fade" style={{ padding: '20px 28px 60px' }}>
       {/* Summary stats row */}
       <div
+        className="grid-5col-cards"
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(5, 1fr)',
-          gap: 12,
           marginBottom: 18,
         }}
       >
@@ -422,10 +420,9 @@ function DispatchEntry({ d, canManage, onAdvance }) {
           >
             {/* Meta grid */}
             <div
+              className="grid-stack-mobile"
               style={{
-                display: 'grid',
                 gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: 12,
                 marginBottom: 14,
                 fontSize: 12,
               }}
