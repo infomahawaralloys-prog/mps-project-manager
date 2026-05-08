@@ -2,7 +2,7 @@
 import { useState, useMemo } from 'react';
 import Logo from './Logo';
 import { Avatar } from '../ui';
-import { Plus, Search, LogOut, Settings } from '../icons';
+import { Plus, Search, LogOut, Settings, Grid } from '../icons';
 
 // ---------------------------------------------------------------------
 // Sidebar — persistent project list.
@@ -19,6 +19,8 @@ export default function Sidebar({
   selectedId,
   onSelect,
   onCreate,
+  onStudioClick,
+  studioActive,
 }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('Active');
@@ -71,6 +73,33 @@ export default function Sidebar({
         }}
       >
         <Logo />
+      </div>
+
+      {/* Studio link (cross-project portfolio view) */}
+      <div style={{ padding: '10px 8px 0' }}>
+        <button
+          onClick={onStudioClick}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '8px 12px',
+            borderRadius: 6,
+            background: studioActive ? 'var(--accent-tint)' : 'transparent',
+            color: studioActive ? 'var(--accent)' : 'var(--ink-700)',
+            cursor: 'pointer',
+            border: 'none',
+            width: '100%',
+            textAlign: 'left',
+            fontFamily: 'inherit',
+            fontWeight: studioActive ? 600 : 500,
+            fontSize: 13,
+          }}
+        >
+          <Grid size={14} color={studioActive ? 'var(--accent)' : 'var(--ink-500)'} />
+          Studio
+          <span style={{ flex: 1 }} />
+        </button>
       </div>
 
       {/* Search + filter */}

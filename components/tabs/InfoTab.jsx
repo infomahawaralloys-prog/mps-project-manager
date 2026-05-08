@@ -12,6 +12,7 @@ import {
   X,
 } from '../icons';
 import { formatDate, formatRelative, formatWeight } from '../../lib/format';
+import PipelineCard from '../studio/PipelineCard';
 
 // Drawing-type metadata (matches DRAW_TYPES = ['civil','ga','fabrication','sheeting'])
 const DRAW_TYPE_META = {
@@ -376,6 +377,9 @@ export default function InfoTab({ project, auth, onUpdated }) {
             </div>
           )}
         </div>
+
+        {/* Drawing pipeline card (Pass 4) */}
+        <PipelineCard project={project} auth={auth} />
 
         {/* Drawings card */}
         <div className="card">

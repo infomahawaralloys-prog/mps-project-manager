@@ -13,6 +13,7 @@ import InfoTab from '../components/tabs/InfoTab';
 import FabTab from '../components/tabs/FabTab';
 import DispatchTab from '../components/tabs/DispatchTab';
 import ErectionTab from '../components/tabs/ErectionTab';
+import StudioView from '../components/studio/StudioView';
 import { CreateProjectForm } from '../components/tabs/legacy-tabs';
 import { Button } from '../components/ui';
 import { Plus, X } from '../components/icons';
@@ -139,6 +140,8 @@ export default function Page() {
         selectedId={selectedId}
         onSelect={handleSelectProject}
         onCreate={() => setShowCreate(true)}
+        onStudioClick={() => setSelectedId(null)}
+        studioActive={!selectedId}
       />
 
       <main
@@ -185,11 +188,17 @@ export default function Page() {
               )}
             </div>
           </>
-        ) : (
+        ) : loading ? (
           <EmptyState
             loading={loading}
             isPM={auth.isPM}
             onCreate={() => setShowCreate(true)}
+          />
+        ) : (
+          <StudioView
+            auth={auth}
+            projects={projects}
+            onProjectClick={handleSelectProject}
           />
         )}
       </main>

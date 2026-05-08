@@ -37,6 +37,7 @@ export const Anchor   = makeIcon([c(12, 5, 3, 'a1'), l(12, 22, 12, 8, 'a2'), p('
 export const Beam     = makeIcon([r(3, 8, 18, 8, 1, 'b1'), l(3, 12, 21, 12, 'b2'), l(8, 8, 8, 16, 'b3'), l(16, 8, 16, 16, 'b4')]);
 export const Coil     = makeIcon([c(12, 12, 8, 'co1'), c(12, 12, 5, 'co2'), c(12, 12, 2.5, 'co3')]);
 export const Bolt     = makeIcon([p('M12 2l3 3-3 3-3-3z', 'bo1'), l(12, 8, 12, 22, 'bo2'), l(9, 12, 15, 12, 'bo3'), l(9, 16, 15, 16, 'bo4')]);
+export const Activity = makeIcon([p('M22 12h-4l-3 9L9 3l-3 9H2', 'ac1')]);
 export const Roof     = makeIcon([p('M3 12l9-7 9 7', 'r1'), p('M5 10v10h14V10', 'r2'), l(9, 20, 9, 14, 'r3'), l(15, 20, 15, 14, 'r4')]);
 export const Cladding = makeIcon([r(3, 4, 18, 16, 1, 'cl1'), l(3, 9, 21, 9, 'cl2'), l(3, 14, 21, 14, 'cl3'), l(3, 19, 21, 19, 'cl4')]);
 export const Nut      = makeIcon([p('M6 3h12l3 9-9 9-9-9z', 'n1'), c(12, 12, 3, 'n2')]);
